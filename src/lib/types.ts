@@ -32,6 +32,7 @@ export type AppState = {
   ankiHidden: boolean;
   ankiHeightVh: number;
   ankiCycleAt: number;
+  topicColumns: number;
   updatedAt: number;
 };
 

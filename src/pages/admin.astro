@@ -8,6 +8,7 @@ import {
   ANKI_HEIGHT_MAX,
   ANKI_HEIGHT_MIN,
 } from "../lib/anki-cycle";
+import { TOPIC_COLUMNS_DEFAULT, TOPIC_COLUMNS_MAX, TOPIC_COLUMNS_MIN } from "../lib/display";
 import { CURRICULUM_FILENAME, CURRICULUM_TEXT, lineCount } from "../lib/curriculum";
 import { DEFAULT_TITLE } from "../lib/defaults";
 import { categoryProgress } from "../lib/progress";
@@ -31,6 +32,7 @@ try {
     ankiHidden: false,
     ankiHeightVh: ANKI_HEIGHT_DEFAULT,
     ankiCycleAt: 0,
+    topicColumns: TOPIC_COLUMNS_DEFAULT,
     categories: [],
     updatedAt: 0,
   };
@@ -127,6 +129,26 @@ const boot = JSON.stringify({
             aria-label="Anki card height"
           />
           <span id="anki-height-val" class="display-height-val">{state.ankiHeightVh}vh</span>
+        </div>
+        <div class="display-row">
+          <span class="display-label">Columns</span>
+          <div class="segment" id="topic-columns" role="group" aria-label="Topic columns">
+            {
+              Array.from({ length: TOPIC_COLUMNS_MAX - TOPIC_COLUMNS_MIN + 1 }, (_, i) => {
+                const n = TOPIC_COLUMNS_MIN + i;
+                return (
+                  <button
+                    type="button"
+                    class="seg"
+                    data-columns={n}
+                    aria-pressed={state.topicColumns === n}
+                  >
+                    {n}
+                  </button>
+                );
+              })
+            }
+          </div>
         </div>
         <div class="display-timer" id="anki-timer">
           <div class="display-timer-stage" id="anki-timer-stage">No cards</div>
@@ -247,6 +269,7 @@ const boot = JSON.stringify({
       var ankiShowAnswerEl = document.getElementById("anki-show-answer");
       var ankiNextStageEl = document.getElementById("anki-next-stage");
       var ankiNextCardEl = document.getElementById("anki-next-card");
+      var topicColumnsEl = document.getElementById("topic-columns");
       if (!bootEl || !listEl || !emptyEl || !statusEl || !sourceEl || !gutterEl || !metaEl || !saveEl || !ankiSourceEl || !ankiGutterEl || !saveAnkiEl) return;
 
       var boot = JSON.parse(bootEl.textContent || "{}");
@@ -336,6 +359,7 @@ const boot = JSON.stringify({
         if (typeof data.ankiHidden === "boolean") state.ankiHidden = data.ankiHidden;
         if (typeof data.ankiHeightVh === "number") state.ankiHeightVh = data.ankiHeightVh;
         if (typeof data.ankiCycleAt === "number") state.ankiCycleAt = data.ankiCycleAt;
+        if (typeof data.topicColumns === "number") state.topicColumns = data.topicColumns;
         if (typeof data.updatedAt === "number") state.updatedAt = data.updatedAt;
         if (ankiVisibleEl) {
           ankiVisibleEl.setAttribute("aria-pressed", state.ankiHidden ? "false" : "true");
@@ -345,6 +369,15 @@ const boot = JSON.stringify({
           ankiHeightEl.value = String(state.ankiHeightVh);
         }
         if (ankiHeightValEl) ankiHeightValEl.textContent = state.ankiHeightVh + "vh";
+        if (topicColumnsEl) {
+          var colBtns = topicColumnsEl.querySelectorAll("[data-columns]");
+          for (var c = 0; c < colBtns.length; c++) {
+            colBtns[c].setAttribute(
+              "aria-pressed",
+              String(Number(colBtns[c].getAttribute("data-columns")) === Number(state.topicColumns)),
+            );
+          }
+        }
         paintTimer();
       }
 
@@ -491,6 +524,7 @@ const boot = JSON.stringify({
               if (typeof sendDisplay.ankiHidden === "boolean") body.ankiHidden = sendDisplay.ankiHidden;
               if (typeof sendDisplay.ankiHeightVh === "number") body.ankiHeightVh = sendDisplay.ankiHeightVh;
               if (typeof sendDisplay.ankiCycleAt === "number") body.ankiCycleAt = sendDisplay.ankiCycleAt;
+              if (typeof sendDisplay.topicColumns === "number") body.topicColumns = sendDisplay.topicColumns;
             }
             var res = await fetch("/api/topics", {
               method: "PUT",
@@ -628,6 +662,7 @@ const boot = JSON.stringify({
               ankiHidden: state.ankiHidden === true,
               ankiHeightVh: Number(state.ankiHeightVh),
               ankiCycleAt: state.ankiCycleAt,
+              topicColumns: Number(state.topicColumns),
             });
           }
         });
@@ -651,6 +686,14 @@ const boot = JSON.stringify({
         ankiHeightEl.addEventListener("change", function () {
           window.clearTimeout(heightTimer);
           save(false, false, { ankiHeightVh: Number(ankiHeightEl.value) });
+        });
+      }
+
+      if (topicColumnsEl) {
+        topicColumnsEl.addEventListener("click", function (event) {
+          var button = event.target.closest("button[data-columns]");
+          if (!button) return;
+          save(false, false, { topicColumns: Number(button.getAttribute("data-columns")) });
         });
       }
 

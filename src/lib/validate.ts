@@ -1,5 +1,6 @@
 import { parseAnki, MAX_ANKI_SOURCE_LENGTH } from "./anki";
 import { ANKI_HEIGHT_DEFAULT, clampAnkiHeight } from "./anki-cycle";
+import { TOPIC_COLUMNS_DEFAULT, clampTopicColumns } from "./display";
 import { CURRICULUM_TEXT, parseCurriculum } from "./curriculum";
 import {
   CONFIDENCE,
@@ -71,6 +72,7 @@ export function parseIncomingState(
   ankiHidden?: boolean;
   ankiHeightVh?: number;
   ankiCycleAt?: number;
+  topicColumns?: number;
 } {
   if (!isRecord(body)) {
     throw new Error("Body must be an object");
@@ -140,6 +142,11 @@ export function parseIncomingState(
     if (ankiCycleAt < now - 366 * 24 * 60 * 60 * 1000) ankiCycleAt = now;
   }
 
+  let topicColumns: number | undefined;
+  if (body.topicColumns !== undefined) {
+    topicColumns = clampTopicColumns(body.topicColumns);
+  }
+
   if (!Array.isArray(body.categories)) {
     throw new Error("categories must be an array");
   }
@@ -199,6 +206,7 @@ export function parseIncomingState(
     ...(ankiHidden !== undefined ? { ankiHidden } : {}),
     ...(ankiHeightVh !== undefined ? { ankiHeightVh } : {}),
     ...(ankiCycleAt !== undefined ? { ankiCycleAt } : {}),
+    ...(topicColumns !== undefined ? { topicColumns } : {}),
   };
 }
 
@@ -225,6 +233,7 @@ export function normalizeState(value: unknown): AppState | null {
         typeof value.ankiCycleAt === "number" && Number.isFinite(value.ankiCycleAt)
           ? value.ankiCycleAt
           : updatedAt,
+      topicColumns: clampTopicColumns(value.topicColumns ?? TOPIC_COLUMNS_DEFAULT),
       version: DATA_VERSION,
       updatedAt,
     };

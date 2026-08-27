@@ -1,6 +1,7 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import { ANKI_CARD_MS, ANKI_FRONT_MS, ANKI_HEIGHT_DEFAULT } from "../lib/anki-cycle";
+import { TOPIC_COLUMNS_DEFAULT } from "../lib/display";
 import { DEFAULT_TITLE } from "../lib/defaults";
 import { getState } from "../lib/store";
 import { categoryProgress } from "../lib/progress";
@@ -23,6 +24,7 @@ try {
     ankiHidden: false,
     ankiHeightVh: ANKI_HEIGHT_DEFAULT,
     ankiCycleAt: 0,
+    topicColumns: TOPIC_COLUMNS_DEFAULT,
     categories: [],
     updatedAt: 0,
   };
@@ -45,7 +47,11 @@ const boot = JSON.stringify({
         Waiting for topics…
       </p>
 
-      <div id="board" class="board">
+      <div
+        id="board"
+        class="board"
+        style={`-webkit-column-count: ${state.topicColumns}; column-count: ${state.topicColumns}`}
+      >
         {
           state.categories.map((category) => (
             <article class="cat" data-collapsed={category.collapsed ? "true" : "false"}>
@@ -249,12 +255,23 @@ const boot = JSON.stringify({
         return done + "/" + total + " (" + pct + "%)";
       }
 
+      function applyColumns() {
+        var n = Number(state.topicColumns);
+        if (!(n >= 1 && n <= 4)) n = 2;
+        n = Math.round(n);
+        boardEl.style.columnCount = String(n);
+        try {
+          boardEl.style.setProperty("-webkit-column-count", String(n));
+        } catch (err) {}
+      }
+
       function applyPayload(next) {
         if (!next || !isArray(next.categories)) return;
         var prev = JSON.stringify(state.categories);
         var incoming = JSON.stringify(next.categories);
         state = next;
         persist();
+        applyColumns();
         if (prev !== incoming) paint();
         syncAnkiDeck();
       }
@@ -329,6 +346,7 @@ const boot = JSON.stringify({
       }
 
       keepAwake();
+      applyColumns();
       syncAnkiDeck();
       setInterval(paintAnki, 250);
       poll();

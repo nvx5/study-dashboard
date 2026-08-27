@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { parseAnki } from "./anki";
 import { ANKI_HEIGHT_DEFAULT, clampAnkiHeight } from "./anki-cycle";
+import { TOPIC_COLUMNS_DEFAULT, clampTopicColumns } from "./display";
 import { CURRICULUM_TEXT } from "./curriculum";
 import { createDefaultState, mergeCurriculum, stateFromSource } from "./defaults";
 import { DATA_VERSION, type AppState } from "./types";
@@ -68,6 +69,7 @@ export async function setState(
     ankiHidden?: boolean;
     ankiHeightVh?: number;
     ankiCycleAt?: number;
+    topicColumns?: number;
   },
 ): Promise<AppState> {
   const db = getDb();
@@ -109,6 +111,9 @@ export async function setState(
   if (typeof next.ankiHeightVh === "number") {
     state = { ...state, ankiHeightVh: clampAnkiHeight(next.ankiHeightVh) };
   }
+  if (typeof next.topicColumns === "number") {
+    state = { ...state, topicColumns: clampTopicColumns(next.topicColumns) };
+  }
   if (typeof next.ankiCycleAt === "number" && Number.isFinite(next.ankiCycleAt)) {
     state = { ...state, ankiCycleAt: next.ankiCycleAt };
   }
@@ -143,6 +148,7 @@ function hydrate(saved: AppState | null): AppState {
       typeof saved.ankiCycleAt === "number" && Number.isFinite(saved.ankiCycleAt)
         ? saved.ankiCycleAt
         : saved.updatedAt,
+    topicColumns: clampTopicColumns(saved.topicColumns ?? TOPIC_COLUMNS_DEFAULT),
   };
   if (withAnki.source) return withAnki;
   return {
