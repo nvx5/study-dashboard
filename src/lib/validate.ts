@@ -1,6 +1,11 @@
 import { parseAnki, MAX_ANKI_SOURCE_LENGTH } from "./anki";
 import { ANKI_HEIGHT_DEFAULT, clampAnkiHeight } from "./anki-cycle";
-import { TOPIC_COLUMNS_DEFAULT, clampTopicColumns } from "./display";
+import {
+  TOPIC_COLUMNS_DEFAULT,
+  clampTopicColumns,
+  normalizeTagColors,
+  normalizeTagNames,
+} from "./display";
 import { CURRICULUM_TEXT, parseCurriculum } from "./curriculum";
 import {
   CONFIDENCE,
@@ -73,6 +78,8 @@ export function parseIncomingState(
   ankiHeightVh?: number;
   ankiCycleAt?: number;
   topicColumns?: number;
+  tagNames?: AppState["tagNames"];
+  tagColors?: AppState["tagColors"];
 } {
   if (!isRecord(body)) {
     throw new Error("Body must be an object");
@@ -147,6 +154,16 @@ export function parseIncomingState(
     topicColumns = clampTopicColumns(body.topicColumns);
   }
 
+  let tagNames: AppState["tagNames"] | undefined;
+  if (body.tagNames !== undefined) {
+    tagNames = normalizeTagNames(body.tagNames);
+  }
+
+  let tagColors: AppState["tagColors"] | undefined;
+  if (body.tagColors !== undefined) {
+    tagColors = normalizeTagColors(body.tagColors);
+  }
+
   if (!Array.isArray(body.categories)) {
     throw new Error("categories must be an array");
   }
@@ -207,6 +224,8 @@ export function parseIncomingState(
     ...(ankiHeightVh !== undefined ? { ankiHeightVh } : {}),
     ...(ankiCycleAt !== undefined ? { ankiCycleAt } : {}),
     ...(topicColumns !== undefined ? { topicColumns } : {}),
+    ...(tagNames !== undefined ? { tagNames } : {}),
+    ...(tagColors !== undefined ? { tagColors } : {}),
   };
 }
 
@@ -234,6 +253,8 @@ export function normalizeState(value: unknown): AppState | null {
           ? value.ankiCycleAt
           : updatedAt,
       topicColumns: clampTopicColumns(value.topicColumns ?? TOPIC_COLUMNS_DEFAULT),
+      tagNames: normalizeTagNames(parsed.tagNames ?? value.tagNames),
+      tagColors: normalizeTagColors(parsed.tagColors ?? value.tagColors),
       version: DATA_VERSION,
       updatedAt,
     };

@@ -33,6 +33,8 @@ export type AppState = {
   ankiHeightVh: number;
   ankiCycleAt: number;
   topicColumns: number;
+  tagNames: Record<Confidence, string>;
+  tagColors: Record<Confidence, string>;
   updatedAt: number;
 };
 

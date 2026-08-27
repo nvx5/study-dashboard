@@ -29,7 +29,3 @@ export function parseCurriculum(text: string): CurriculumCategory[] {
 
   return categories.filter((category) => category.name && category.topics.length > 0);
 }
-
-export function lineCount(text: string): number {
-  return text.replace(/\n$/, "").split("\n").length;
-}

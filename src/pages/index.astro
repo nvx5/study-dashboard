@@ -1,11 +1,19 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import { ANKI_CARD_MS, ANKI_FRONT_MS, ANKI_HEIGHT_DEFAULT } from "../lib/anki-cycle";
-import { TOPIC_COLUMNS_DEFAULT } from "../lib/display";
+import {
+  clampTopicColumns,
+  DEFAULT_TAG_COLORS,
+  DEFAULT_TAG_NAMES,
+  splitIntoColumns,
+  tagCssVars,
+  TOPIC_COLUMNS_DEFAULT,
+  normalizeTagNames,
+} from "../lib/display";
 import { DEFAULT_TITLE } from "../lib/defaults";
 import { getState } from "../lib/store";
 import { categoryProgress } from "../lib/progress";
-import { DATA_VERSION, STATUS_LABEL, type AppState } from "../lib/types";
+import { DATA_VERSION, type AppState } from "../lib/types";
 
 let loaded = true;
 let state: AppState;
@@ -25,6 +33,8 @@ try {
     ankiHeightVh: ANKI_HEIGHT_DEFAULT,
     ankiCycleAt: 0,
     topicColumns: TOPIC_COLUMNS_DEFAULT,
+    tagNames: { ...DEFAULT_TAG_NAMES },
+    tagColors: { ...DEFAULT_TAG_COLORS },
     categories: [],
     updatedAt: 0,
   };
@@ -38,7 +48,7 @@ const boot = JSON.stringify({
 ---
 
 <Layout title="Curriculum" page="display">
-  <div class="frame" data-anki={state.ankiCards.length && !state.ankiHidden ? "on" : "off"}>
+  <div class="frame" data-anki={state.ankiCards.length && !state.ankiHidden ? "on" : "off"} style={tagCssVars(state.tagColors)}>
     <div class="stage">
       <p id="empty" class="empty" hidden={state.categories.length > 0 || !loaded}>
         No topics yet
@@ -47,27 +57,31 @@ const boot = JSON.stringify({
         Waiting for topics…
       </p>
 
-      <div id="board" class="board" data-columns={state.topicColumns}>
+      <div id="board" class="board" data-columns={clampTopicColumns(state.topicColumns)}>
         {
-          state.categories.map((category) => (
-            <article class="cat" data-collapsed={category.collapsed ? "true" : "false"}>
-              <h2>
-                <span class="cat-title">{category.name}</span>
-                <span class="cat-progress">{categoryProgress(category).label}</span>
-              </h2>
-              {category.collapsed ? null : (
-                <ul>
-                  {category.topics.map((topic) => (
-                    <li>
-                      <span class="topic-name">{topic.name}</span>
-                      <span class="tag" data-confidence={topic.confidence}>
-                        {STATUS_LABEL[topic.confidence]}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </article>
+          splitIntoColumns(state.categories, state.topicColumns).map((column) => (
+            <div class="board-col">
+              {column.map((category) => (
+                <article class="cat" data-collapsed={category.collapsed ? "true" : "false"}>
+                  <h2>
+                    <span class="cat-title">{category.name}</span>
+                    <span class="cat-progress">{categoryProgress(category).label}</span>
+                  </h2>
+                  {category.collapsed ? null : (
+                    <ul>
+                      {category.topics.map((topic) => (
+                        <li>
+                          <span class="topic-name">{topic.name}</span>
+                          <span class="tag" data-confidence={topic.confidence}>
+                            {normalizeTagNames(state.tagNames)[topic.confidence]}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </article>
+              ))}
+            </div>
           ))
         }
       </div>
@@ -96,11 +110,8 @@ const boot = JSON.stringify({
     (function () {
       var POLL_MS = 2000;
       var CACHE_KEY = "study-dashboard-cache";
-      var labels = {
-        red: "Needs study",
-        yellow: "Improving",
-        green: "Confident",
-      };
+      var DEFAULT_NAMES = { red: "Needs study", yellow: "Improving", green: "Confident" };
+      var DEFAULT_COLORS = { red: "#6e2020", yellow: "#5c3d00", green: "#12261e" };
 
       var boardEl = document.getElementById("board");
       var emptyEl = document.getElementById("empty");
@@ -145,6 +156,98 @@ const boot = JSON.stringify({
         } catch (err) {}
       }
 
+      function columnCount() {
+        var n = Number(state.topicColumns);
+        if (!(n >= 1 && n <= 4)) n = 2;
+        return Math.round(n);
+      }
+
+      function parseHex(value) {
+        var s = String(value || "").replace(/^\s+|\s+$/g, "").replace(/^#/, "");
+        if (s.length === 3 && /^[0-9a-fA-F]{3}$/.test(s)) {
+          s = s.charAt(0) + s.charAt(0) + s.charAt(1) + s.charAt(1) + s.charAt(2) + s.charAt(2);
+        }
+        if (!/^[0-9a-fA-F]{6}$/.test(s)) return "";
+        return "#" + s.toLowerCase();
+      }
+
+      function tagSwatch(hex) {
+        var parsed = parseHex(hex) || DEFAULT_COLORS.red;
+        var r = parseInt(parsed.slice(1, 3), 16);
+        var g = parseInt(parsed.slice(3, 5), 16);
+        var b = parseInt(parsed.slice(5, 7), 16);
+        function lin(c) {
+          var x = c / 255;
+          return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+        }
+        var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+        var text = L > 0.45 ? "#111111" : "#ffffff";
+        var t = L > 0.45 ? 0.22 : 0.28;
+        var toward = L > 0.45 ? 0 : 255;
+        function mix(a) {
+          var n = Math.round(a + (toward - a) * t);
+          var h = n.toString(16);
+          return h.length < 2 ? "0" + h : h;
+        }
+        return { bg: parsed, text: text, border: "#" + mix(r) + mix(g) + mix(b) };
+      }
+
+      function tagLabel(conf) {
+        var names = state.tagNames || {};
+        if (names[conf]) return names[conf];
+        return DEFAULT_NAMES[conf] || conf;
+      }
+
+      function applyTagTheme() {
+        if (!frameEl) return;
+        var colors = state.tagColors || {};
+        var keys = ["red", "yellow", "green"];
+        for (var i = 0; i < keys.length; i++) {
+          var key = keys[i];
+          var sw = tagSwatch(colors[key] || DEFAULT_COLORS[key]);
+          try {
+            frameEl.style.setProperty("--tag-" + key + "-bg", sw.bg);
+            frameEl.style.setProperty("--tag-" + key + "-text", sw.text);
+            frameEl.style.setProperty("--tag-" + key + "-border", sw.border);
+          } catch (err) {}
+        }
+      }
+
+      function makeCat(category) {
+        var article = document.createElement("article");
+        article.className = "cat";
+        article.setAttribute("data-collapsed", category.collapsed ? "true" : "false");
+        var heading = document.createElement("h2");
+        var title = document.createElement("span");
+        title.className = "cat-title";
+        title.textContent = category.name;
+        var progress = document.createElement("span");
+        progress.className = "cat-progress";
+        progress.textContent = progressLabel(category);
+        heading.appendChild(title);
+        heading.appendChild(progress);
+        article.appendChild(heading);
+        if (!category.collapsed) {
+          var list = document.createElement("ul");
+          for (var t = 0; t < category.topics.length; t++) {
+            var topic = category.topics[t];
+            var li = document.createElement("li");
+            var name = document.createElement("span");
+            name.className = "topic-name";
+            name.textContent = topic.name;
+            var tag = document.createElement("span");
+            tag.className = "tag";
+            tag.setAttribute("data-confidence", topic.confidence);
+            tag.textContent = tagLabel(topic.confidence);
+            li.appendChild(name);
+            li.appendChild(tag);
+            list.appendChild(li);
+          }
+          article.appendChild(list);
+        }
+        return article;
+      }
+
       function paint() {
         setHidden(waitingEl, true);
 
@@ -156,44 +259,19 @@ const boot = JSON.stringify({
         }
 
         setHidden(emptyEl, true);
-        var frag = document.createDocumentFragment();
-        for (var c = 0; c < state.categories.length; c++) {
-          var category = state.categories[c];
-          var article = document.createElement("article");
-          article.className = "cat";
-          article.setAttribute("data-collapsed", category.collapsed ? "true" : "false");
-          var heading = document.createElement("h2");
-          var title = document.createElement("span");
-          title.className = "cat-title";
-          title.textContent = category.name;
-          var progress = document.createElement("span");
-          progress.className = "cat-progress";
-          progress.textContent = progressLabel(category);
-          heading.appendChild(title);
-          heading.appendChild(progress);
-          article.appendChild(heading);
-          if (!category.collapsed) {
-            var list = document.createElement("ul");
-            for (var t = 0; t < category.topics.length; t++) {
-              var topic = category.topics[t];
-              var li = document.createElement("li");
-              var name = document.createElement("span");
-              name.className = "topic-name";
-              name.textContent = topic.name;
-              var tag = document.createElement("span");
-              tag.className = "tag";
-              tag.setAttribute("data-confidence", topic.confidence);
-              tag.textContent = labels[topic.confidence] || topic.confidence;
-              li.appendChild(name);
-              li.appendChild(tag);
-              list.appendChild(li);
-            }
-            article.appendChild(list);
-          }
-          frag.appendChild(article);
+        var n = columnCount();
+        var cols = [];
+        var i;
+        for (i = 0; i < n; i++) {
+          var col = document.createElement("div");
+          col.className = "board-col";
+          cols.push(col);
+        }
+        for (i = 0; i < state.categories.length; i++) {
+          cols[i % n].appendChild(makeCat(state.categories[i]));
         }
         clearNode(boardEl);
-        boardEl.appendChild(frag);
+        for (i = 0; i < n; i++) boardEl.appendChild(cols[i]);
         applyColumns();
       }
 
@@ -254,50 +332,63 @@ const boot = JSON.stringify({
       }
 
       function applyColumns() {
-        var n = Number(state.topicColumns);
-        if (!(n >= 1 && n <= 4)) n = 2;
-        n = Math.round(n);
+        var n = columnCount();
         boardEl.setAttribute("data-columns", String(n));
         boardEl.style.display = "flex";
-        boardEl.style.webkitBoxAlign = "start";
+        boardEl.style.flexDirection = "row";
+        boardEl.style.webkitFlexWrap = "nowrap";
+        boardEl.style.flexWrap = "nowrap";
         boardEl.style.webkitAlignItems = "flex-start";
         boardEl.style.alignItems = "flex-start";
-        boardEl.style.webkitFlexWrap = "wrap";
-        boardEl.style.flexWrap = "wrap";
-        boardEl.style.webkitAlignContent = "flex-start";
-        boardEl.style.alignContent = "flex-start";
         boardEl.style.columnCount = "auto";
         boardEl.style.webkitColumnCount = "auto";
         boardEl.style.gridTemplateColumns = "";
-        boardEl.style.gap = "";
-        var w = "calc(" + (100 / n).toFixed(4) + "% - 16px)";
-        var cats = boardEl.children;
-        for (var i = 0; i < cats.length; i++) {
-          if (cats[i].nodeType !== 1) continue;
-          cats[i].style.cssFloat = "none";
-          cats[i].style.webkitBoxFlex = "0";
-          cats[i].style.webkitFlex = "0 0 auto";
-          cats[i].style.flex = "0 0 auto";
-          cats[i].style.webkitAlignSelf = "flex-start";
-          cats[i].style.alignSelf = "flex-start";
-          cats[i].style.width = w;
-          cats[i].style.maxWidth = w;
-          cats[i].style.minWidth = "0";
-          cats[i].style.height = "auto";
-          cats[i].style.boxSizing = "border-box";
-          cats[i].style.marginLeft = "8px";
-          cats[i].style.marginRight = "8px";
+        var cols = boardEl.children;
+        if (state.categories.length && cols.length !== n) {
+          paint();
+          return;
+        }
+        for (var i = 0; i < cols.length; i++) {
+          if (cols[i].nodeType !== 1) continue;
+          cols[i].className = "board-col";
+          cols[i].style.webkitBoxFlex = "1";
+          cols[i].style.webkitFlex = "1 1 0%";
+          cols[i].style.flex = "1 1 0%";
+          cols[i].style.width = (100 / n).toFixed(4) + "%";
+          cols[i].style.minWidth = "0";
+          cols[i].style.marginLeft = "8px";
+          cols[i].style.marginRight = "8px";
+          var cards = cols[i].children;
+          for (var c = 0; c < cards.length; c++) {
+            if (cards[c].nodeType !== 1) continue;
+            cards[c].style.cssFloat = "none";
+            cards[c].style.flex = "none";
+            cards[c].style.width = "100%";
+            cards[c].style.maxWidth = "100%";
+            cards[c].style.height = "auto";
+            cards[c].style.marginLeft = "0";
+            cards[c].style.marginRight = "0";
+            cards[c].style.marginBottom = "16px";
+          }
         }
       }
 
       function applyPayload(next) {
         if (!next || !isArray(next.categories)) return;
         var prev = JSON.stringify(state.categories);
+        var prevCols = Number(state.topicColumns);
+        var prevNames = JSON.stringify(state.tagNames || {});
         var incoming = JSON.stringify(next.categories);
         state = next;
         persist();
-        if (prev !== incoming) paint();
-        else applyColumns();
+        applyTagTheme();
+        if (
+          prev !== incoming ||
+          prevCols !== Number(state.topicColumns) ||
+          prevNames !== JSON.stringify(state.tagNames || {})
+        ) {
+          paint();
+        } else applyColumns();
         syncAnkiDeck();
       }
 
@@ -355,6 +446,7 @@ const boot = JSON.stringify({
             if (parsed && isArray(parsed.categories) && parsed.categories.length) {
               state = parsed;
               paint();
+              applyTagTheme();
             }
           }
         } catch (err) {}
@@ -371,6 +463,7 @@ const boot = JSON.stringify({
       }
 
       keepAwake();
+      applyTagTheme();
       applyColumns();
       syncAnkiDeck();
       setInterval(paintAnki, 250);

@@ -1,7 +1,14 @@
 import { env } from "cloudflare:workers";
 import { parseAnki } from "./anki";
 import { ANKI_HEIGHT_DEFAULT, clampAnkiHeight } from "./anki-cycle";
-import { TOPIC_COLUMNS_DEFAULT, clampTopicColumns } from "./display";
+import {
+  DEFAULT_TAG_COLORS,
+  DEFAULT_TAG_NAMES,
+  TOPIC_COLUMNS_DEFAULT,
+  clampTopicColumns,
+  normalizeTagColors,
+  normalizeTagNames,
+} from "./display";
 import { CURRICULUM_TEXT } from "./curriculum";
 import { createDefaultState, mergeCurriculum, stateFromSource } from "./defaults";
 import { DATA_VERSION, type AppState } from "./types";
@@ -70,6 +77,8 @@ export async function setState(
     ankiHeightVh?: number;
     ankiCycleAt?: number;
     topicColumns?: number;
+    tagNames?: AppState["tagNames"];
+    tagColors?: AppState["tagColors"];
   },
 ): Promise<AppState> {
   const db = getDb();
@@ -114,6 +123,12 @@ export async function setState(
   if (typeof next.topicColumns === "number") {
     state = { ...state, topicColumns: clampTopicColumns(next.topicColumns) };
   }
+  if (next.tagNames) {
+    state = { ...state, tagNames: normalizeTagNames(next.tagNames) };
+  }
+  if (next.tagColors) {
+    state = { ...state, tagColors: normalizeTagColors(next.tagColors) };
+  }
   if (typeof next.ankiCycleAt === "number" && Number.isFinite(next.ankiCycleAt)) {
     state = { ...state, ankiCycleAt: next.ankiCycleAt };
   }
@@ -149,6 +164,8 @@ function hydrate(saved: AppState | null): AppState {
         ? saved.ankiCycleAt
         : saved.updatedAt,
     topicColumns: clampTopicColumns(saved.topicColumns ?? TOPIC_COLUMNS_DEFAULT),
+    tagNames: normalizeTagNames(saved.tagNames ?? DEFAULT_TAG_NAMES),
+    tagColors: normalizeTagColors(saved.tagColors ?? DEFAULT_TAG_COLORS),
   };
   if (withAnki.source) return withAnki;
   return {

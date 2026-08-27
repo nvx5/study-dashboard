@@ -1,6 +1,13 @@
 import { CURRICULUM_TEXT, parseCurriculum, type CurriculumCategory } from "./curriculum";
 import { ANKI_HEIGHT_DEFAULT, clampAnkiHeight } from "./anki-cycle";
-import { TOPIC_COLUMNS_DEFAULT, clampTopicColumns } from "./display";
+import {
+  DEFAULT_TAG_COLORS,
+  DEFAULT_TAG_NAMES,
+  TOPIC_COLUMNS_DEFAULT,
+  clampTopicColumns,
+  normalizeTagColors,
+  normalizeTagNames,
+} from "./display";
 import { DATA_VERSION, type AppState, type Category } from "./types";
 
 export const DEFAULT_TITLE = "MSRA Master Clinical Curriculum";
@@ -38,6 +45,8 @@ export function createDefaultState(): AppState {
     ankiHeightVh: ANKI_HEIGHT_DEFAULT,
     ankiCycleAt: Date.now(),
     topicColumns: TOPIC_COLUMNS_DEFAULT,
+    tagNames: { ...DEFAULT_TAG_NAMES },
+    tagColors: { ...DEFAULT_TAG_COLORS },
     updatedAt: Date.now(),
   };
 }
@@ -60,6 +69,8 @@ export function stateFromSource(source: string, saved: AppState | null): AppStat
     ankiHeightVh: clampAnkiHeight(saved?.ankiHeightVh),
     ankiCycleAt: saved?.ankiCycleAt ?? saved?.updatedAt ?? Date.now(),
     topicColumns: clampTopicColumns(saved?.topicColumns),
+    tagNames: normalizeTagNames(saved?.tagNames),
+    tagColors: normalizeTagColors(saved?.tagColors),
     updatedAt: saved?.updatedAt ?? Date.now(),
   };
 
@@ -96,6 +107,8 @@ export function mergeCurriculum(saved: AppState | null, blueprint: AppState): Ap
     ankiHeightVh: clampAnkiHeight(saved?.ankiHeightVh ?? blueprint.ankiHeightVh),
     ankiCycleAt: saved?.ankiCycleAt ?? blueprint.ankiCycleAt,
     topicColumns: clampTopicColumns(saved?.topicColumns ?? blueprint.topicColumns),
+    tagNames: normalizeTagNames(saved?.tagNames ?? blueprint.tagNames),
+    tagColors: normalizeTagColors(saved?.tagColors ?? blueprint.tagColors),
     updatedAt: saved?.updatedAt ?? blueprint.updatedAt,
     categories: blueprint.categories.map((category, categoryIndex) => {
       const prior = previous.get(category.name);
