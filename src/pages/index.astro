@@ -1,9 +1,10 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import "../styles/global.css";
+import { ANKI_CARD_MS, ANKI_FRONT_MS, ANKI_HEIGHT_DEFAULT } from "../lib/anki-cycle";
 import { DEFAULT_TITLE } from "../lib/defaults";
 import { getState } from "../lib/store";
-import { STATUS_LABEL, type AppState } from "../lib/types";
+import { categoryProgress } from "../lib/progress";
+import { DATA_VERSION, STATUS_LABEL, type AppState } from "../lib/types";
 
 let loaded = true;
 let state: AppState;
@@ -12,43 +13,86 @@ try {
   state = await getState();
 } catch {
   loaded = false;
-  state = { title: DEFAULT_TITLE, topics: [], updatedAt: 0 };
+  state = {
+    version: DATA_VERSION,
+    title: DEFAULT_TITLE,
+    theme: "dark",
+    source: "",
+    ankiSource: "",
+    ankiCards: [],
+    ankiHidden: false,
+    ankiHeightVh: ANKI_HEIGHT_DEFAULT,
+    ankiCycleAt: 0,
+    categories: [],
+    updatedAt: 0,
+  };
 }
 
-const boot = JSON.stringify({ loaded, state }).replace(/</g, "\\u003c");
-const pageTitle = state.title || DEFAULT_TITLE;
+const boot = JSON.stringify({
+  loaded,
+  state,
+  anki: { frontMs: ANKI_FRONT_MS, cardMs: ANKI_CARD_MS },
+}).replace(/</g, "\\u003c");
 ---
 
-<Layout title={pageTitle} page="display">
-  <div class="frame">
-    <header class="header">
-      <h1 id="title">{pageTitle}</h1>
-    </header>
+<Layout title="Curriculum" page="display">
+  <div class="frame" data-anki={state.ankiCards.length && !state.ankiHidden ? "on" : "off"}>
+    <div class="stage">
+      <p id="empty" class="empty" hidden={state.categories.length > 0 || !loaded}>
+        No topics yet
+      </p>
+      <p id="waiting" class="empty" hidden={loaded}>
+        Waiting for topics…
+      </p>
 
-    <p id="empty" class="empty" hidden={state.topics.length > 0 || !loaded}>
-      No topics yet
-    </p>
-    <p id="waiting" class="empty" hidden={loaded}>
-      Waiting for topics…
-    </p>
+      <div id="board" class="board">
+        {
+          state.categories.map((category) => (
+            <article class="cat" data-collapsed={category.collapsed ? "true" : "false"}>
+              <h2>
+                <span class="cat-title">{category.name}</span>
+                <span class="cat-progress">{categoryProgress(category).label}</span>
+              </h2>
+              {category.collapsed ? null : (
+                <ul>
+                  {category.topics.map((topic) => (
+                    <li>
+                      <span class="topic-name">{topic.name}</span>
+                      <span class="tag" data-confidence={topic.confidence}>
+                        {STATUS_LABEL[topic.confidence]}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </article>
+          ))
+        }
+      </div>
+    </div>
 
-    <ul id="topics" class="topics">
-      {
-        state.topics.map((topic) => (
-          <li class="topic" data-confidence={topic.confidence}>
-            <h2>{topic.name}</h2>
-            <p class="status">{STATUS_LABEL[topic.confidence]}</p>
-          </li>
-        ))
-      }
-    </ul>
+    <section
+      id="anki"
+      class="anki"
+      hidden={!state.ankiCards.length || state.ankiHidden}
+      style={`--anki-dock: ${state.ankiHeightVh}vh`}
+    >
+      <div class="anki-head">
+        <span class="anki-title">Anki</span>
+        <span id="anki-side" class="anki-side">{state.ankiCards.length ? "Front" : ""}</span>
+        <span id="anki-count" class="anki-count">
+          {state.ankiCards.length ? `1/${state.ankiCards.length}` : ""}
+        </span>
+      </div>
+      <div id="anki-text" class="anki-text" set:html={state.ankiCards[0] ? state.ankiCards[0].front : ""} />
+    </section>
   </div>
 
   <script id="boot" type="application/json" is:inline set:html={boot} />
 
   <script is:inline>
     (function () {
-      var POLL_MS = 4000;
+      var POLL_MS = 2000;
       var CACHE_KEY = "study-dashboard-cache";
       var labels = {
         red: "Needs study",
@@ -56,16 +100,22 @@ const pageTitle = state.title || DEFAULT_TITLE;
         green: "Confident",
       };
 
-      var titleEl = document.getElementById("title");
-      var listEl = document.getElementById("topics");
+      var boardEl = document.getElementById("board");
       var emptyEl = document.getElementById("empty");
       var waitingEl = document.getElementById("waiting");
       var bootEl = document.getElementById("boot");
-      if (!titleEl || !listEl || !emptyEl || !waitingEl || !bootEl) return;
+      var frameEl = document.querySelector(".frame");
+      var ankiEl = document.getElementById("anki");
+      var ankiText = document.getElementById("anki-text");
+      var ankiSide = document.getElementById("anki-side");
+      var ankiCount = document.getElementById("anki-count");
+      if (!boardEl || !emptyEl || !waitingEl || !bootEl) return;
 
       var boot = JSON.parse(bootEl.textContent || "{}");
-      var state = boot.state || { title: "Study topics", topics: [], updatedAt: 0 };
-      var etag = null;
+      var state = boot.state || { categories: [], ankiCards: [], updatedAt: 0 };
+      var FRONT_MS = (boot.anki && boot.anki.frontMs) || 30000;
+      var CARD_MS = (boot.anki && boot.anki.cardMs) || 120000;
+      var ankiKey = "";
 
       function persist() {
         try {
@@ -74,33 +124,101 @@ const pageTitle = state.title || DEFAULT_TITLE;
       }
 
       function paint() {
-        titleEl.textContent = state.title || "Study topics";
-        document.title = state.title || "Study topics";
-
         waitingEl.hidden = true;
 
-        if (!state.topics.length) {
-          listEl.replaceChildren();
+        if (!state.categories.length) {
+          boardEl.replaceChildren();
           emptyEl.hidden = false;
           return;
         }
 
         emptyEl.hidden = true;
         var frag = document.createDocumentFragment();
-        for (var i = 0; i < state.topics.length; i++) {
-          var topic = state.topics[i];
-          var li = document.createElement("li");
-          li.className = "topic";
-          li.setAttribute("data-confidence", topic.confidence);
-          var name = document.createElement("h2");
-          name.textContent = topic.name;
-          var status = document.createElement("p");
-          status.className = "status";
-          status.textContent = labels[topic.confidence] || topic.confidence;
-          li.append(name, status);
-          frag.append(li);
+        for (var c = 0; c < state.categories.length; c++) {
+          var category = state.categories[c];
+          var article = document.createElement("article");
+          article.className = "cat";
+          article.setAttribute("data-collapsed", category.collapsed ? "true" : "false");
+          var heading = document.createElement("h2");
+          var title = document.createElement("span");
+          title.className = "cat-title";
+          title.textContent = category.name;
+          var progress = document.createElement("span");
+          progress.className = "cat-progress";
+          progress.textContent = progressLabel(category);
+          heading.append(title, progress);
+          article.append(heading);
+          if (!category.collapsed) {
+            var list = document.createElement("ul");
+            for (var t = 0; t < category.topics.length; t++) {
+              var topic = category.topics[t];
+              var li = document.createElement("li");
+              var name = document.createElement("span");
+              name.className = "topic-name";
+              name.textContent = topic.name;
+              var tag = document.createElement("span");
+              tag.className = "tag";
+              tag.setAttribute("data-confidence", topic.confidence);
+              tag.textContent = labels[topic.confidence] || topic.confidence;
+              li.append(name, tag);
+              list.append(li);
+            }
+            article.append(list);
+          }
+          frag.append(article);
         }
-        listEl.replaceChildren(frag);
+        boardEl.replaceChildren(frag);
+      }
+
+      function ankiCards() {
+        return Array.isArray(state.ankiCards) ? state.ankiCards : [];
+      }
+
+      function ankiPos() {
+        var cards = ankiCards();
+        if (!cards.length) return null;
+        var origin = typeof state.ankiCycleAt === "number" ? state.ankiCycleAt : Date.now();
+        var elapsed = Math.max(0, Date.now() - origin);
+        var index = Math.floor(elapsed / CARD_MS) % cards.length;
+        var inCard = elapsed % CARD_MS;
+        return {
+          index: index,
+          showBack: inCard >= FRONT_MS,
+          cards: cards,
+        };
+      }
+
+      function paintAnki() {
+        if (!ankiEl || !ankiText || !ankiSide) return;
+        var pos = ankiPos();
+        var show = pos && !state.ankiHidden;
+        ankiEl.hidden = !show;
+        if (frameEl) frameEl.setAttribute("data-anki", show ? "on" : "off");
+        var height = Number(state.ankiHeightVh);
+        if (Number.isFinite(height) && height > 0) {
+          ankiEl.style.setProperty("--anki-dock", height + "vh");
+        }
+        if (!pos) return;
+        var card = pos.cards[pos.index];
+        ankiSide.textContent = pos.showBack ? "Back" : "Front";
+        if (ankiCount) ankiCount.textContent = pos.index + 1 + "/" + pos.cards.length;
+        ankiText.innerHTML = pos.showBack ? card.back : card.front;
+      }
+
+      function syncAnkiDeck() {
+        var key = JSON.stringify(ankiCards());
+        if (key !== ankiKey) ankiKey = key;
+        paintAnki();
+      }
+
+      function progressLabel(category) {
+        var total = category.topics.length;
+        var done = 0;
+        for (var i = 0; i < total; i++) {
+          if (category.topics[i].confidence === "green") done++;
+        }
+        var pct = total === 0 ? 0 : Math.round((done * 100) / total);
+        return done + "/" + total + " (" + pct + "%)";
       }
 
       if (!boot.loaded) {
@@ -108,7 +226,7 @@ const pageTitle = state.title || DEFAULT_TITLE;
           var cached = localStorage.getItem(CACHE_KEY);
           if (cached) {
             var parsed = JSON.parse(cached);
-            if (parsed && Array.isArray(parsed.topics) && parsed.topics.length) {
+            if (parsed && Array.isArray(parsed.categories) && parsed.categories.length) {
               state = parsed;
               paint();
             }
@@ -119,158 +237,65 @@ const pageTitle = state.title || DEFAULT_TITLE;
       }
 
       async function poll() {
+        var controller = typeof AbortController === "function" ? new AbortController() : null;
+        var abortTimer = setTimeout(function () {
+          if (controller) controller.abort();
+        }, 8000);
         try {
-          var headers = { Accept: "application/json" };
-          if (etag) headers["If-None-Match"] = etag;
-          var res = await fetch("/api/topics", { headers: headers, cache: "no-store" });
-          if (res.status === 304) return;
+          var options = {
+            cache: "no-store",
+            headers: {
+              Accept: "application/json",
+              "Cache-Control": "no-cache",
+              Pragma: "no-cache",
+            },
+          };
+          if (controller) options.signal = controller.signal;
+          var res = await fetch("/api/topics?t=" + Date.now(), options);
           if (!res.ok) return;
           var next = await res.json();
-          etag = res.headers.get("ETag");
-          var prev = JSON.stringify({ title: state.title, topics: state.topics });
-          var incoming = JSON.stringify({ title: next.title, topics: next.topics });
+          if (!next || !Array.isArray(next.categories)) return;
+          var prev = JSON.stringify(state.categories);
+          var incoming = JSON.stringify(next.categories);
           state = next;
           persist();
           if (prev !== incoming) paint();
+          syncAnkiDeck();
+        } catch (err) {
+        } finally {
+          clearTimeout(abortTimer);
+        }
+      }
+
+      function loop() {
+        poll().then(
+          function () {
+            setTimeout(loop, POLL_MS);
+          },
+          function () {
+            setTimeout(loop, POLL_MS);
+          },
+        );
+      }
+
+      function keepAwake() {
+        try {
+          if (navigator.wakeLock && navigator.wakeLock.request) {
+            navigator.wakeLock.request("screen").catch(function () {});
+          }
         } catch (err) {}
       }
 
-      setInterval(poll, POLL_MS);
+      keepAwake();
+      syncAnkiDeck();
+      setInterval(paintAnki, 250);
+      loop();
       document.addEventListener("visibilitychange", function () {
-        if (document.visibilityState === "visible") poll();
+        if (document.visibilityState === "visible") {
+          keepAwake();
+          poll();
+        }
       });
     })();
   </script>
 </Layout>
-
-<style is:global>
-  body.display {
-    height: 100%;
-    overflow: hidden;
-  }
-
-  body.display {
-    cursor: none;
-    user-select: none;
-    -webkit-user-select: none;
-    background: var(--bg);
-    overscroll-behavior: none;
-  }
-
-  body.display .frame {
-    height: 100%;
-    height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    padding:
-      max(0.7rem, env(safe-area-inset-top))
-      max(0.9rem, env(safe-area-inset-right))
-      max(0.7rem, env(safe-area-inset-bottom))
-      max(0.9rem, env(safe-area-inset-left));
-    gap: clamp(0.45rem, 1.4vh, 1rem);
-  }
-
-  body.display .header {
-    flex: 0 0 auto;
-  }
-
-  body.display h1 {
-    margin: 0;
-    font-size: clamp(1rem, 1.6vw + 0.7rem, 1.85rem);
-    font-weight: 650;
-    letter-spacing: -0.02em;
-    color: var(--text);
-  }
-
-  body.display .empty {
-    margin: auto;
-    font-size: clamp(1.1rem, 2vw + 0.6rem, 2rem);
-    color: var(--muted);
-    font-weight: 500;
-  }
-
-  body.display .topics {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    flex: 1 1 auto;
-    min-height: 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
-    grid-auto-rows: minmax(4.75rem, 1fr);
-    gap: clamp(0.4rem, 1.1vmin, 0.9rem);
-    overflow: auto;
-    align-content: stretch;
-  }
-
-  body.display .topic {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 0.2rem;
-    min-width: 0;
-    min-height: 4.75rem;
-    padding: clamp(0.65rem, 1.4vmin, 1.15rem) clamp(0.8rem, 1.8vmin, 1.35rem);
-    border-radius: 0.7rem;
-    border: 1px solid var(--line);
-    border-left-width: 0.7rem;
-    background: var(--surface);
-  }
-
-  body.display .topic h2 {
-    margin: 0;
-    font-size: clamp(1.05rem, 1.5vw + 0.55rem, 2.15rem);
-    font-weight: 650;
-    letter-spacing: -0.02em;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-  }
-
-  body.display .topic .status {
-    margin: 0;
-    font-size: clamp(0.8rem, 0.7vw + 0.62rem, 1.15rem);
-    font-weight: 650;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-  }
-
-  body.display .topic[data-confidence="red"] {
-    background: var(--red-bg);
-    border-color: var(--red);
-    color: var(--text);
-  }
-
-  body.display .topic[data-confidence="red"] .status {
-    color: var(--red);
-  }
-
-  body.display .topic[data-confidence="yellow"] {
-    background: var(--yellow-bg);
-    border-color: var(--yellow);
-  }
-
-  body.display .topic[data-confidence="yellow"] .status {
-    color: var(--yellow);
-  }
-
-  body.display .topic[data-confidence="green"] {
-    background: var(--green-bg);
-    border-color: var(--green);
-  }
-
-  body.display .topic[data-confidence="green"] .status {
-    color: var(--green);
-  }
-
-  @media (max-width: 700px), (orientation: portrait) {
-    body.display .topics {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  @media (min-width: 1600px) and (min-aspect-ratio: 16/10) {
-    body.display .topics {
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
-    }
-  }
-</style>

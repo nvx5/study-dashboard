@@ -1,9 +1,18 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import "../styles/global.css";
+import { ANKI_FILENAME, MAX_ANKI_SOURCE_LENGTH } from "../lib/anki";
+import {
+  ANKI_CARD_MS,
+  ANKI_FRONT_MS,
+  ANKI_HEIGHT_DEFAULT,
+  ANKI_HEIGHT_MAX,
+  ANKI_HEIGHT_MIN,
+} from "../lib/anki-cycle";
+import { CURRICULUM_FILENAME, CURRICULUM_TEXT, lineCount } from "../lib/curriculum";
 import { DEFAULT_TITLE } from "../lib/defaults";
+import { categoryProgress } from "../lib/progress";
 import { getState } from "../lib/store";
-import { MAX_NAME_LENGTH, MAX_TITLE_LENGTH, MAX_TOPICS, type AppState } from "../lib/types";
+import { DATA_VERSION, type AppState } from "../lib/types";
 
 let loaded = true;
 let state: AppState;
@@ -12,149 +21,197 @@ try {
   state = await getState();
 } catch {
   loaded = false;
-  state = { title: DEFAULT_TITLE, topics: [], updatedAt: 0 };
+  state = {
+    version: DATA_VERSION,
+    title: DEFAULT_TITLE,
+    theme: "dark",
+    source: CURRICULUM_TEXT,
+    ankiSource: "",
+    ankiCards: [],
+    ankiHidden: false,
+    ankiHeightVh: ANKI_HEIGHT_DEFAULT,
+    ankiCycleAt: 0,
+    categories: [],
+    updatedAt: 0,
+  };
 }
 
 const boot = JSON.stringify({
   loaded,
   state,
-  maxName: MAX_NAME_LENGTH,
-  maxTitle: MAX_TITLE_LENGTH,
-  maxTopics: MAX_TOPICS,
+  anki: {
+    frontMs: ANKI_FRONT_MS,
+    cardMs: ANKI_CARD_MS,
+    heightMin: ANKI_HEIGHT_MIN,
+    heightMax: ANKI_HEIGHT_MAX,
+  },
 }).replace(/</g, "\\u003c");
 ---
 
-<Layout title="Admin · Study topics" page="admin">
+<Layout title="Admin" page="admin">
   <div class="wrap">
-    <header class="top">
-      <div>
-        <p class="eyebrow">Phone controls</p>
-        <h1>Topics</h1>
-      </div>
-      <p id="save-status" class="save-status" aria-live="polite"></p>
-    </header>
-
     <p id="load-error" class="banner" hidden={loaded} role="status">
       Couldn’t load saved topics. You can still edit, then save when the connection returns.
     </p>
 
-    <section class="block" aria-labelledby="title-label">
-      <label id="title-label" for="display-title">Display title</label>
-      <input
-        id="display-title"
-        name="title"
-        maxlength={MAX_TITLE_LENGTH}
-        value={state.title}
-        autocomplete="off"
-      />
+    <section class="file" aria-label={CURRICULUM_FILENAME}>
+      <div class="file-head">
+        <span class="file-name">{CURRICULUM_FILENAME}</span>
+        <span id="file-meta" class="file-meta">{lineCount(state.source)} lines</span>
+        <p id="save-status" class="save-status" aria-live="polite"></p>
+        <button type="button" class="btn" id="copy-curriculum">Copy</button>
+        <button type="button" class="btn primary" id="save-curriculum">Save</button>
+      </div>
+      <div class="file-body">
+        <pre id="gutter" class="gutter" aria-hidden="true"></pre>
+        <textarea
+          id="source"
+          class="source"
+          spellcheck="false"
+          wrap="off"
+          aria-label={CURRICULUM_FILENAME}
+        >{state.source}</textarea>
+      </div>
     </section>
 
-    <section class="block add" aria-labelledby="add-label">
-      <label id="add-label" for="new-topic">Add a topic</label>
-      <form id="add-form" class="add-row">
+    <section class="file" aria-label={ANKI_FILENAME}>
+      <div class="file-head">
+        <span class="file-name">{ANKI_FILENAME}</span>
+        <span id="anki-meta" class="file-meta">{state.ankiCards.length} cards</span>
+        <p id="anki-status" class="save-status" aria-live="polite"></p>
         <input
-          id="new-topic"
-          name="name"
-          maxlength={MAX_NAME_LENGTH}
-          placeholder="Topic name"
-          autocomplete="off"
-          enterkeyhint="done"
+          id="anki-upload"
+          class="visually-hidden"
+          type="file"
+          accept=".txt,text/plain"
+          data-max={MAX_ANKI_SOURCE_LENGTH}
         />
-        <button type="submit">Add</button>
-      </form>
+        <button type="button" class="btn" id="copy-anki">Copy</button>
+        <button type="button" class="btn" id="upload-anki">Upload</button>
+        <button type="button" class="btn primary" id="save-anki">Save</button>
+      </div>
+      <div class="file-body anki-body">
+        <pre id="anki-gutter" class="gutter" aria-hidden="true"></pre>
+        <textarea
+          id="anki-source"
+          class="source"
+          spellcheck="false"
+          wrap="off"
+          aria-label={ANKI_FILENAME}
+          placeholder={"Paste an Anki Notes in Plain Text export, or Upload the .txt file.\nCloze cards ({{c1::answer}}) work. Extra text after the tab shows on the back."}
+        >{state.ankiSource}</textarea>
+      </div>
     </section>
 
-    <ul id="list" class="list">
-      {
-        state.topics.map((topic, index) => (
-          <li class="card" data-id={topic.id} data-confidence={topic.confidence}>
-            <div class="card-head">
-              <label class="visually-hidden" for={`name-${topic.id}`}>
-                Topic name
-              </label>
-              <input
-                id={`name-${topic.id}`}
-                class="name"
-                value={topic.name}
-                maxlength={MAX_NAME_LENGTH}
-                autocomplete="off"
-              />
-              <button type="button" class="text-btn danger" data-action="delete">
-                Delete
-              </button>
-            </div>
-            <div class="segment" role="group" aria-label={`Confidence for ${topic.name}`}>
-              <button
-                type="button"
-                class="seg red"
-                data-action="confidence"
-                data-value="red"
-                aria-pressed={topic.confidence === "red"}
-              >
-                Red
-              </button>
-              <button
-                type="button"
-                class="seg yellow"
-                data-action="confidence"
-                data-value="yellow"
-                aria-pressed={topic.confidence === "yellow"}
-              >
-                Yellow
-              </button>
-              <button
-                type="button"
-                class="seg green"
-                data-action="confidence"
-                data-value="green"
-                aria-pressed={topic.confidence === "green"}
-              >
-                Green
-              </button>
-            </div>
-            <div class="reorder">
-              <button type="button" class="text-btn" data-action="up" disabled={index === 0}>
-                Move up
-              </button>
-              <button
-                type="button"
-                class="text-btn"
-                data-action="down"
-                disabled={index === state.topics.length - 1}
-              >
-                Move down
-              </button>
-            </div>
-          </li>
-        ))
-      }
-    </ul>
+    <section class="file" aria-label="Display">
+      <div class="file-head">
+        <span class="file-name">Display</span>
+        <span id="display-meta" class="file-meta">Kiosk Anki</span>
+        <p id="display-status" class="save-status" aria-live="polite"></p>
+      </div>
+      <div class="display-panel">
+        <div class="display-row">
+          <span class="display-label">Anki card</span>
+          <button type="button" class="btn" id="anki-visible" aria-pressed={!state.ankiHidden}>
+            {state.ankiHidden ? "Hidden" : "Shown"}
+          </button>
+        </div>
+        <div class="display-row">
+          <span class="display-label">Card height</span>
+          <input
+            id="anki-height"
+            type="range"
+            min={ANKI_HEIGHT_MIN}
+            max={ANKI_HEIGHT_MAX}
+            value={state.ankiHeightVh}
+            aria-label="Anki card height"
+          />
+          <span id="anki-height-val" class="display-height-val">{state.ankiHeightVh}vh</span>
+        </div>
+        <div class="display-timer" id="anki-timer">
+          <div class="display-timer-stage" id="anki-timer-stage">No cards</div>
+          <div class="display-timer-clock" id="anki-timer-clock">—</div>
+          <div class="display-timer-sub" id="anki-timer-sub">Upload or paste anki.txt to start the cycle</div>
+        </div>
+        <div class="display-actions">
+          <button type="button" class="btn" id="anki-show-answer">Show answer</button>
+          <button type="button" class="btn" id="anki-next-stage">Next stage</button>
+          <button type="button" class="btn" id="anki-next-card">Next card</button>
+        </div>
+      </div>
+    </section>
 
-    <p id="empty" class="empty" hidden={state.topics.length > 0}>No topics yet. Add one above.</p>
-
-    <p class="foot">
-      <a href="/">Open display</a>
-    </p>
+    <section class="file" aria-label="Topics">
+      <div class="file-head">
+        <span class="file-name">Topics</span>
+        <span id="topics-meta" class="file-meta">
+          {state.categories.length} {state.categories.length === 1 ? "category" : "categories"}
+        </span>
+      </div>
+      <div id="list" class="categories">
+        {
+          state.categories.map((category) => {
+            const progress = categoryProgress(category);
+            return (
+              <details class="category" data-id={category.id}>
+                <summary>
+                  <span class="summary-name">{category.name}</span>
+                  <span class="summary-progress">{progress.label}</span>
+                  <button
+                    type="button"
+                    class="btn collapse"
+                    data-action="collapse"
+                    aria-pressed={category.collapsed}
+                  >
+                    {category.collapsed ? "Collapsed" : "Shown"}
+                  </button>
+                </summary>
+                <ul class="topics">
+                  {category.topics.map((topic) => (
+                    <li class="topic" data-id={topic.id} data-confidence={topic.confidence}>
+                      <span class="topic-name">{topic.name}</span>
+                      <div class="segment" role="group" aria-label={`Confidence for ${topic.name}`}>
+                        <button
+                          type="button"
+                          class="seg red"
+                          data-action="confidence"
+                          data-value="red"
+                          aria-pressed={topic.confidence === "red"}
+                        >
+                          Need
+                        </button>
+                        <button
+                          type="button"
+                          class="seg yellow"
+                          data-action="confidence"
+                          data-value="yellow"
+                          aria-pressed={topic.confidence === "yellow"}
+                        >
+                          Mid
+                        </button>
+                        <button
+                          type="button"
+                          class="seg green"
+                          data-action="confidence"
+                          data-value="green"
+                          aria-pressed={topic.confidence === "green"}
+                        >
+                          Done
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            );
+          })
+        }
+        <p id="empty" class="empty" hidden={state.categories.length > 0}>
+          Save curriculum.txt to generate topic cards.
+        </p>
+      </div>
+    </section>
   </div>
-
-  <template id="card-template">
-    <li class="card" data-id="" data-confidence="red">
-      <div class="card-head">
-        <label class="visually-hidden">Topic name</label>
-        <input class="name" maxlength={MAX_NAME_LENGTH} autocomplete="off" />
-        <button type="button" class="text-btn danger" data-action="delete">Delete</button>
-      </div>
-      <div class="segment" role="group" aria-label="Confidence">
-        <button type="button" class="seg red" data-action="confidence" data-value="red">Red</button>
-        <button type="button" class="seg yellow" data-action="confidence" data-value="yellow">Yellow</button>
-        <button type="button" class="seg green" data-action="confidence" data-value="green">Green</button>
-      </div>
-      <div class="reorder">
-        <button type="button" class="text-btn" data-action="up">Move up</button>
-        <button type="button" class="text-btn" data-action="down">Move down</button>
-      </div>
-    </li>
-  </template>
 
   <script id="boot" type="application/json" is:inline set:html={boot} />
 
@@ -163,497 +220,504 @@ const boot = JSON.stringify({
       var bootEl = document.getElementById("boot");
       var listEl = document.getElementById("list");
       var emptyEl = document.getElementById("empty");
-      var titleEl = document.getElementById("display-title");
-      var addForm = document.getElementById("add-form");
-      var newTopicEl = document.getElementById("new-topic");
       var statusEl = document.getElementById("save-status");
       var loadErrorEl = document.getElementById("load-error");
-      var template = document.getElementById("card-template");
-      if (!bootEl || !listEl || !emptyEl || !titleEl || !addForm || !newTopicEl || !statusEl || !template) return;
+      var sourceEl = document.getElementById("source");
+      var gutterEl = document.getElementById("gutter");
+      var metaEl = document.getElementById("file-meta");
+      var copyEl = document.getElementById("copy-curriculum");
+      var saveEl = document.getElementById("save-curriculum");
+      var topicsMetaEl = document.getElementById("topics-meta");
+      var ankiSourceEl = document.getElementById("anki-source");
+      var ankiGutterEl = document.getElementById("anki-gutter");
+      var ankiMetaEl = document.getElementById("anki-meta");
+      var ankiStatusEl = document.getElementById("anki-status");
+      var copyAnkiEl = document.getElementById("copy-anki");
+      var saveAnkiEl = document.getElementById("save-anki");
+      var uploadAnkiEl = document.getElementById("upload-anki");
+      var ankiUploadEl = document.getElementById("anki-upload");
+      var displayStatusEl = document.getElementById("display-status");
+      var displayMetaEl = document.getElementById("display-meta");
+      var ankiVisibleEl = document.getElementById("anki-visible");
+      var ankiHeightEl = document.getElementById("anki-height");
+      var ankiHeightValEl = document.getElementById("anki-height-val");
+      var ankiTimerStageEl = document.getElementById("anki-timer-stage");
+      var ankiTimerClockEl = document.getElementById("anki-timer-clock");
+      var ankiTimerSubEl = document.getElementById("anki-timer-sub");
+      var ankiShowAnswerEl = document.getElementById("anki-show-answer");
+      var ankiNextStageEl = document.getElementById("anki-next-stage");
+      var ankiNextCardEl = document.getElementById("anki-next-card");
+      if (!bootEl || !listEl || !emptyEl || !statusEl || !sourceEl || !gutterEl || !metaEl || !saveEl || !ankiSourceEl || !ankiGutterEl || !saveAnkiEl) return;
 
       var boot = JSON.parse(bootEl.textContent || "{}");
-      var state = boot.state || { title: "Study topics", topics: [], updatedAt: 0 };
-      var maxName = boot.maxName || 200;
-      var maxTitle = boot.maxTitle || 80;
-      var maxTopics = boot.maxTopics || 200;
+      var state = boot.state || { title: "Curriculum", theme: "dark", source: "", categories: [] };
+      var FRONT_MS = (boot.anki && boot.anki.frontMs) || 30000;
+      var CARD_MS = (boot.anki && boot.anki.cardMs) || 120000;
       var inFlight = false;
       var queued = false;
+      var queuedSource = false;
+      var queuedAnki = false;
+      var queuedDisplay = null;
       var clearTimer = 0;
-      var pendingDeleteId = null;
-      var deleteTimer = 0;
+      var heightTimer = 0;
 
-      function setStatus(text, kind) {
-        statusEl.textContent = text;
-        statusEl.dataset.kind = kind || "";
+      function setStatus(text, kind, targets) {
+        var els = targets || [statusEl, ankiStatusEl];
+        for (var s = 0; s < els.length; s++) {
+          if (!els[s]) continue;
+          els[s].textContent = text;
+          els[s].dataset.kind = kind || "";
+        }
         window.clearTimeout(clearTimer);
         if (kind === "ok") {
           clearTimer = window.setTimeout(function () {
-            if (statusEl.dataset.kind === "ok") {
-              statusEl.textContent = "";
-              statusEl.dataset.kind = "";
+            for (var i = 0; i < els.length; i++) {
+              if (els[i] && els[i].dataset.kind === "ok") {
+                els[i].textContent = "";
+                els[i].dataset.kind = "";
+              }
             }
           }, 1600);
         }
       }
 
-      function findTopic(id) {
-        for (var i = 0; i < state.topics.length; i++) {
-          if (state.topics[i].id === id) return state.topics[i];
+      function clock(ms) {
+        var s = Math.max(0, Math.ceil(ms / 1000));
+        var m = Math.floor(s / 60);
+        s = s % 60;
+        return m + ":" + (s < 10 ? "0" : "") + s;
+      }
+
+      function ankiPos() {
+        var cards = Array.isArray(state.ankiCards) ? state.ankiCards : [];
+        if (!cards.length) return null;
+        var origin = typeof state.ankiCycleAt === "number" ? state.ankiCycleAt : Date.now();
+        var elapsed = Math.max(0, Date.now() - origin);
+        var index = Math.floor(elapsed / CARD_MS) % cards.length;
+        var inCard = elapsed % CARD_MS;
+        var showBack = inCard >= FRONT_MS;
+        return {
+          count: cards.length,
+          index: index,
+          showBack: showBack,
+          stageRemain: (showBack ? CARD_MS : FRONT_MS) - inCard,
+          cardRemain: CARD_MS - inCard,
+        };
+      }
+
+      function paintTimer() {
+        var pos = ankiPos();
+        var disabled = !pos;
+        if (ankiShowAnswerEl) ankiShowAnswerEl.disabled = disabled || !!(pos && pos.showBack);
+        if (ankiNextStageEl) ankiNextStageEl.disabled = disabled;
+        if (ankiNextCardEl) ankiNextCardEl.disabled = disabled;
+        if (ankiVisibleEl) ankiVisibleEl.disabled = disabled;
+        if (!pos) {
+          if (ankiTimerStageEl) ankiTimerStageEl.textContent = "No cards";
+          if (ankiTimerClockEl) ankiTimerClockEl.textContent = "—";
+          if (ankiTimerSubEl) ankiTimerSubEl.textContent = "Upload or paste anki.txt to start the cycle";
+          if (displayMetaEl) displayMetaEl.textContent = "Kiosk Anki";
+          return;
+        }
+        if (ankiTimerStageEl) {
+          ankiTimerStageEl.textContent =
+            (state.ankiHidden ? "Hidden · " : "") + (pos.showBack ? "Back" : "Front") + " · " + (pos.index + 1) + "/" + pos.count;
+        }
+        if (ankiTimerClockEl) ankiTimerClockEl.textContent = clock(pos.stageRemain);
+        if (ankiTimerSubEl) {
+          ankiTimerSubEl.textContent = pos.showBack
+            ? "Next card in " + clock(pos.cardRemain)
+            : "Answer in " + clock(pos.stageRemain) + " · next card in " + clock(pos.cardRemain);
+        }
+        if (displayMetaEl) displayMetaEl.textContent = pos.index + 1 + "/" + pos.count;
+      }
+
+      function applyDisplay(data) {
+        if (typeof data.ankiHidden === "boolean") state.ankiHidden = data.ankiHidden;
+        if (typeof data.ankiHeightVh === "number") state.ankiHeightVh = data.ankiHeightVh;
+        if (typeof data.ankiCycleAt === "number") state.ankiCycleAt = data.ankiCycleAt;
+        if (typeof data.updatedAt === "number") state.updatedAt = data.updatedAt;
+        if (ankiVisibleEl) {
+          ankiVisibleEl.setAttribute("aria-pressed", state.ankiHidden ? "false" : "true");
+          ankiVisibleEl.textContent = state.ankiHidden ? "Hidden" : "Shown";
+        }
+        if (ankiHeightEl && String(ankiHeightEl.value) !== String(state.ankiHeightVh)) {
+          ankiHeightEl.value = String(state.ankiHeightVh);
+        }
+        if (ankiHeightValEl) ankiHeightValEl.textContent = state.ankiHeightVh + "vh";
+        paintTimer();
+      }
+
+      function syncGutter() {
+        fillGutter(sourceEl, gutterEl, metaEl, "lines");
+      }
+
+      function syncAnkiGutter() {
+        fillGutter(ankiSourceEl, ankiGutterEl, null, "lines");
+      }
+
+      function fillGutter(input, gutter, meta, unit) {
+        var count = input.value.split("\n").length;
+        var lines = "";
+        for (var i = 1; i <= count; i++) lines += i + (i === count ? "" : "\n");
+        gutter.textContent = lines;
+        if (meta && unit === "lines") meta.textContent = count + " lines";
+      }
+
+      function findCategory(id) {
+        for (var i = 0; i < state.categories.length; i++) {
+          if (state.categories[i].id === id) return state.categories[i];
         }
         return null;
       }
 
-      function syncPressed(card, confidence) {
-        var buttons = card.querySelectorAll("[data-action='confidence']");
-        for (var i = 0; i < buttons.length; i++) {
-          buttons[i].setAttribute("aria-pressed", buttons[i].getAttribute("data-value") === confidence ? "true" : "false");
+      function findTopic(category, id) {
+        for (var i = 0; i < category.topics.length; i++) {
+          if (category.topics[i].id === id) return category.topics[i];
         }
-        card.setAttribute("data-confidence", confidence);
-        var nameInput = card.querySelector(".name");
-        var group = card.querySelector(".segment");
-        if (nameInput && group) {
-          group.setAttribute("aria-label", "Confidence for " + nameInput.value);
+        return null;
+      }
+
+      function progressLabel(category) {
+        var total = category.topics.length;
+        var done = 0;
+        for (var i = 0; i < total; i++) {
+          if (category.topics[i].confidence === "green") done++;
         }
+        var pct = total === 0 ? 0 : Math.round((done * 100) / total);
+        return done + "/" + total + " (" + pct + "%)";
+      }
+
+      function openIds() {
+        var ids = [];
+        var open = listEl.querySelectorAll("details[open]");
+        for (var i = 0; i < open.length; i++) ids.push(open[i].getAttribute("data-id"));
+        return ids;
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
       }
 
       function renderList() {
-        var activeCard = document.activeElement && document.activeElement.closest
-          ? document.activeElement.closest(".card")
-          : null;
-        var restoreId = activeCard && document.activeElement.classList.contains("name")
-          ? activeCard.getAttribute("data-id")
-          : null;
-
-        listEl.replaceChildren();
-        for (var i = 0; i < state.topics.length; i++) {
-          var topic = state.topics[i];
-          var node = template.content.firstElementChild.cloneNode(true);
-          node.setAttribute("data-id", topic.id);
-          var label = node.querySelector("label");
-          var input = node.querySelector(".name");
-          input.id = "name-" + topic.id;
-          input.value = topic.name;
-          input.maxLength = maxName;
-          label.setAttribute("for", input.id);
-          label.textContent = "Topic name";
-          syncPressed(node, topic.confidence);
-          node.querySelector("[data-action='up']").disabled = i === 0;
-          node.querySelector("[data-action='down']").disabled = i === state.topics.length - 1;
-          if (pendingDeleteId === topic.id) {
-            var del = node.querySelector("[data-action='delete']");
-            del.textContent = "Confirm delete";
-            del.dataset.confirm = "true";
+        var opened = openIds();
+        var html = "";
+        for (var c = 0; c < state.categories.length; c++) {
+          var category = state.categories[c];
+          html += '<details class="category" data-id="' + escapeHtml(category.id) + '"' + (opened.indexOf(category.id) !== -1 ? " open" : "") + ">";
+          html += "<summary>";
+          html += '<span class="summary-name"></span>';
+          html += '<span class="summary-progress">' + escapeHtml(progressLabel(category)) + "</span>";
+          html += '<button type="button" class="btn collapse" data-action="collapse" aria-pressed="' + (category.collapsed ? "true" : "false") + '">';
+          html += category.collapsed ? "Collapsed" : "Shown";
+          html += "</button></summary><ul class='topics'>";
+          for (var t = 0; t < category.topics.length; t++) {
+            var topic = category.topics[t];
+            html += '<li class="topic" data-id="' + escapeHtml(topic.id) + '" data-confidence="' + topic.confidence + '">';
+            html += '<span class="topic-name"></span>';
+            html += '<div class="segment" role="group">';
+            html += '<button type="button" class="seg red" data-action="confidence" data-value="red">Need</button>';
+            html += '<button type="button" class="seg yellow" data-action="confidence" data-value="yellow">Mid</button>';
+            html += '<button type="button" class="seg green" data-action="confidence" data-value="green">Done</button>';
+            html += "</div></li>";
           }
-          listEl.append(node);
+          html += "</ul></details>";
+        }
+        if (!state.categories.length) {
+          html = '<p id="empty" class="empty">Save curriculum.txt to generate topic cards.</p>';
+        }
+        listEl.innerHTML = html;
+        emptyEl = document.getElementById("empty");
+        if (topicsMetaEl) {
+          var n = state.categories.length;
+          topicsMetaEl.textContent = n + (n === 1 ? " category" : " categories");
         }
 
-        emptyEl.hidden = state.topics.length > 0;
-
-        if (restoreId) {
-          var next = listEl.querySelector('.card[data-id="' + restoreId + '"] .name');
-          if (next) next.focus();
+        var cats = listEl.querySelectorAll(".category");
+        for (var i = 0; i < cats.length; i++) {
+          var catNode = cats[i];
+          var cat = findCategory(catNode.getAttribute("data-id"));
+          catNode.querySelector(".summary-name").textContent = cat.name;
+          var rows = catNode.querySelectorAll(".topic");
+          for (var r = 0; r < rows.length; r++) {
+            var item = cat.topics[r];
+            rows[r].querySelector(".topic-name").textContent = item.name;
+            var buttons = rows[r].querySelectorAll("[data-action='confidence']");
+            for (var b = 0; b < buttons.length; b++) {
+              buttons[b].setAttribute("aria-pressed", buttons[b].getAttribute("data-value") === item.confidence ? "true" : "false");
+            }
+          }
         }
       }
 
-      async function save() {
+      async function save(includeSource, includeAnki, displayPatch) {
         if (inFlight) {
           queued = true;
+          if (includeSource) queuedSource = true;
+          if (includeAnki) queuedAnki = true;
+          if (displayPatch) queuedDisplay = Object.assign({}, queuedDisplay || {}, displayPatch);
           return;
         }
         inFlight = true;
-        setStatus("Saving…", "pending");
+        var displayOnly = !!(displayPatch && !includeSource && !includeAnki);
+        var statusTargets = displayOnly && displayStatusEl ? [displayStatusEl] : [statusEl, ankiStatusEl];
+        if (displayPatch) queuedDisplay = Object.assign({}, queuedDisplay || {}, displayPatch);
+        setStatus("Saving…", "pending", statusTargets);
         try {
           do {
+            var sendSource = queuedSource || includeSource;
+            var sendAnki = queuedAnki || includeAnki;
+            var sendDisplay = queuedDisplay;
             queued = false;
+            queuedSource = false;
+            queuedAnki = false;
+            queuedDisplay = null;
+            includeSource = false;
+            includeAnki = false;
+            displayOnly = !sendSource && !sendAnki && !!sendDisplay;
+            statusTargets = displayOnly && displayStatusEl ? [displayStatusEl] : [statusEl, ankiStatusEl];
+            var body = {
+              title: state.title || "MSRA Master Clinical Curriculum",
+              theme: "dark",
+              categories: state.categories,
+            };
+            if (sendSource) body.source = sourceEl.value;
+            if (sendAnki) body.ankiSource = ankiSourceEl.value;
+            if (sendDisplay) {
+              if (typeof sendDisplay.ankiHidden === "boolean") body.ankiHidden = sendDisplay.ankiHidden;
+              if (typeof sendDisplay.ankiHeightVh === "number") body.ankiHeightVh = sendDisplay.ankiHeightVh;
+              if (typeof sendDisplay.ankiCycleAt === "number") body.ankiCycleAt = sendDisplay.ankiCycleAt;
+            }
             var res = await fetch("/api/topics", {
               method: "PUT",
               headers: { "Content-Type": "application/json", Accept: "application/json" },
-              body: JSON.stringify({ title: state.title, topics: state.topics }),
+              body: JSON.stringify(body),
             });
             var data = await res.json().catch(function () {
               return {};
             });
             if (!res.ok) throw new Error(data.error || "Save failed");
-            state.updatedAt = data.updatedAt || Date.now();
+            if (sendSource && data.categories) {
+              state = data;
+              if (typeof data.source === "string") sourceEl.value = data.source;
+              if (typeof data.ankiSource === "string") ankiSourceEl.value = data.ankiSource;
+              syncGutter();
+              syncAnkiGutter();
+              renderList();
+            } else if (sendAnki) {
+              state.ankiSource = data.ankiSource || ankiSourceEl.value;
+              state.ankiCards = data.ankiCards || [];
+              state.updatedAt = data.updatedAt || Date.now();
+              if (ankiMetaEl) ankiMetaEl.textContent = state.ankiCards.length + " cards";
+            } else {
+              state.updatedAt = data.updatedAt || Date.now();
+            }
+            applyDisplay(data);
             if (loadErrorEl) loadErrorEl.hidden = true;
           } while (queued);
-          setStatus("Saved", "ok");
+          setStatus("Saved", "ok", statusTargets);
         } catch (err) {
-          setStatus("Couldn’t save. Tap to retry.", "error");
+          setStatus(err && err.message ? err.message : "Couldn’t save. Tap to retry.", "error", statusTargets);
         } finally {
           inFlight = false;
         }
       }
 
+      syncGutter();
+      syncAnkiGutter();
+      applyDisplay(state);
+      paintTimer();
+      setInterval(paintTimer, 250);
+      sourceEl.addEventListener("input", syncGutter);
+      sourceEl.addEventListener("scroll", function () {
+        gutterEl.scrollTop = sourceEl.scrollTop;
+      });
+      ankiSourceEl.addEventListener("input", syncAnkiGutter);
+      ankiSourceEl.addEventListener("scroll", function () {
+        ankiGutterEl.scrollTop = ankiSourceEl.scrollTop;
+      });
+
       statusEl.addEventListener("click", function () {
-        if (statusEl.dataset.kind === "error") save();
+        if (statusEl.dataset.kind === "error") save(false, false);
       });
-
-      titleEl.addEventListener("change", function () {
-        var next = titleEl.value.trim();
-        if (!next) {
-          titleEl.value = state.title;
-          return;
-        }
-        state.title = next.slice(0, maxTitle);
-        titleEl.value = state.title;
-        save();
-      });
-
-      addForm.addEventListener("submit", function (event) {
-        event.preventDefault();
-        var name = newTopicEl.value.trim();
-        if (!name) {
-          newTopicEl.focus();
-          return;
-        }
-        if (state.topics.length >= maxTopics) {
-          setStatus("Topic limit reached.", "error");
-          return;
-        }
-        var id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
-        state.topics.push({
-          id: id,
-          name: name.slice(0, maxName),
-          confidence: "red",
-          order: state.topics.length,
+      if (ankiStatusEl) {
+        ankiStatusEl.addEventListener("click", function () {
+          if (ankiStatusEl.dataset.kind === "error") save(false, true);
         });
-        newTopicEl.value = "";
-        renderList();
-        save();
-        newTopicEl.focus();
+      }
+
+      if (copyEl) {
+        copyEl.addEventListener("click", function () {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(sourceEl.value).then(
+              function () {
+                copyEl.textContent = "Copied";
+                window.setTimeout(function () {
+                  copyEl.textContent = "Copy";
+                }, 1200);
+              },
+              function () {},
+            );
+          }
+        });
+      }
+
+      saveEl.addEventListener("click", function () {
+        save(true, false);
       });
+      saveAnkiEl.addEventListener("click", function () {
+        save(false, true);
+      });
+      function applyAnkiText(text) {
+        var max = Number(ankiUploadEl && ankiUploadEl.getAttribute("data-max")) || 500000;
+        var next = String(text || "").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
+        if (next.length > max) {
+          setStatus("anki.txt is too long", "error");
+          return;
+        }
+        ankiSourceEl.value = next;
+        syncAnkiGutter();
+        save(false, true);
+      }
+      if (uploadAnkiEl && ankiUploadEl) {
+        uploadAnkiEl.addEventListener("click", function () {
+          ankiUploadEl.click();
+        });
+        ankiUploadEl.addEventListener("change", function () {
+          var file = ankiUploadEl.files && ankiUploadEl.files[0];
+          ankiUploadEl.value = "";
+          if (!file) return;
+          if (file.size > 2 * 1024 * 1024) {
+            setStatus("anki.txt is too long", "error");
+            return;
+          }
+          var reader = new FileReader();
+          reader.onload = function () {
+            applyAnkiText(typeof reader.result === "string" ? reader.result : "");
+          };
+          reader.onerror = function () {
+            setStatus("Couldn’t read that file.", "error");
+          };
+          reader.readAsText(file);
+        });
+      }
+      if (copyAnkiEl) {
+        copyAnkiEl.addEventListener("click", function () {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(ankiSourceEl.value).then(
+              function () {
+                copyAnkiEl.textContent = "Copied";
+                window.setTimeout(function () {
+                  copyAnkiEl.textContent = "Copy";
+                }, 1200);
+              },
+              function () {},
+            );
+          }
+        });
+      }
+
+      if (displayStatusEl) {
+        displayStatusEl.addEventListener("click", function () {
+          if (displayStatusEl.dataset.kind === "error") {
+            save(false, false, {
+              ankiHidden: state.ankiHidden === true,
+              ankiHeightVh: Number(state.ankiHeightVh),
+              ankiCycleAt: state.ankiCycleAt,
+            });
+          }
+        });
+      }
+
+      if (ankiVisibleEl) {
+        ankiVisibleEl.addEventListener("click", function () {
+          var hidden = ankiVisibleEl.getAttribute("aria-pressed") !== "false";
+          save(false, false, { ankiHidden: hidden });
+        });
+      }
+
+      if (ankiHeightEl) {
+        ankiHeightEl.addEventListener("input", function () {
+          if (ankiHeightValEl) ankiHeightValEl.textContent = ankiHeightEl.value + "vh";
+          window.clearTimeout(heightTimer);
+          heightTimer = window.setTimeout(function () {
+            save(false, false, { ankiHeightVh: Number(ankiHeightEl.value) });
+          }, 250);
+        });
+        ankiHeightEl.addEventListener("change", function () {
+          window.clearTimeout(heightTimer);
+          save(false, false, { ankiHeightVh: Number(ankiHeightEl.value) });
+        });
+      }
+
+      function jumpCycle(kind) {
+        var pos = ankiPos();
+        if (!pos) return;
+        var now = Date.now();
+        var nextAt = now;
+        if (kind === "answer") {
+          nextAt = now - (pos.index * CARD_MS + FRONT_MS);
+        } else if (kind === "stage") {
+          if (pos.showBack) nextAt = now - ((pos.index + 1) % pos.count) * CARD_MS;
+          else nextAt = now - (pos.index * CARD_MS + FRONT_MS);
+        } else {
+          nextAt = now - ((pos.index + 1) % pos.count) * CARD_MS;
+        }
+        save(false, false, { ankiCycleAt: nextAt });
+      }
+
+      if (ankiShowAnswerEl) {
+        ankiShowAnswerEl.addEventListener("click", function () {
+          jumpCycle("answer");
+        });
+      }
+      if (ankiNextStageEl) {
+        ankiNextStageEl.addEventListener("click", function () {
+          jumpCycle("stage");
+        });
+      }
+      if (ankiNextCardEl) {
+        ankiNextCardEl.addEventListener("click", function () {
+          jumpCycle("card");
+        });
+      }
 
       listEl.addEventListener("click", function (event) {
         var button = event.target.closest("button");
         if (!button) return;
-        var card = button.closest(".card");
-        if (!card) return;
-        var id = card.getAttribute("data-id");
-        var topic = findTopic(id);
-        if (!topic) return;
         var action = button.getAttribute("data-action");
-        var index = state.topics.indexOf(topic);
+        var catNode = button.closest(".category");
+        if (!catNode) return;
+        var category = findCategory(catNode.getAttribute("data-id"));
+        if (!category) return;
+
+        if (action === "collapse") {
+          event.preventDefault();
+          event.stopPropagation();
+          category.collapsed = !category.collapsed;
+          button.setAttribute("aria-pressed", category.collapsed ? "true" : "false");
+          button.textContent = category.collapsed ? "Collapsed" : "Shown";
+          save(false, false);
+          return;
+        }
 
         if (action === "confidence") {
+          var row = button.closest(".topic");
+          var topic = findTopic(category, row.getAttribute("data-id"));
           topic.confidence = button.getAttribute("data-value");
-          pendingDeleteId = null;
-          syncPressed(card, topic.confidence);
-          save();
-          return;
-        }
-
-        if (action === "delete") {
-          if (pendingDeleteId !== id) {
-            var previous = listEl.querySelector("[data-action='delete'][data-confirm='true']");
-            if (previous) {
-              previous.textContent = "Delete";
-              delete previous.dataset.confirm;
-            }
-            pendingDeleteId = id;
-            button.textContent = "Confirm delete";
-            button.dataset.confirm = "true";
-            window.clearTimeout(deleteTimer);
-            deleteTimer = window.setTimeout(function () {
-              if (pendingDeleteId === id) {
-                button.textContent = "Delete";
-                delete button.dataset.confirm;
-                pendingDeleteId = null;
-              }
-            }, 4000);
-            return;
+          var buttons = row.querySelectorAll("[data-action='confidence']");
+          for (var i = 0; i < buttons.length; i++) {
+            buttons[i].setAttribute("aria-pressed", buttons[i].getAttribute("data-value") === topic.confidence ? "true" : "false");
           }
-          pendingDeleteId = null;
-          state.topics.splice(index, 1);
-          renderList();
-          save();
-          return;
+          row.setAttribute("data-confidence", topic.confidence);
+          catNode.querySelector(".summary-progress").textContent = progressLabel(category);
+          save(false, false);
         }
-
-        if (action === "up" && index > 0) {
-          var prev = state.topics[index - 1];
-          state.topics[index - 1] = topic;
-          state.topics[index] = prev;
-          pendingDeleteId = null;
-          renderList();
-          save();
-          return;
-        }
-
-        if (action === "down" && index < state.topics.length - 1) {
-          var next = state.topics[index + 1];
-          state.topics[index + 1] = topic;
-          state.topics[index] = next;
-          pendingDeleteId = null;
-          renderList();
-          save();
-        }
-      });
-
-      listEl.addEventListener("change", function (event) {
-        var input = event.target;
-        if (!input.classList.contains("name")) return;
-        var card = input.closest(".card");
-        var topic = findTopic(card.getAttribute("data-id"));
-        if (!topic) return;
-        var name = input.value.trim();
-        if (!name) {
-          input.value = topic.name;
-          return;
-        }
-        topic.name = name.slice(0, maxName);
-        input.value = topic.name;
-        save();
-      });
-
-      listEl.addEventListener("keydown", function (event) {
-        if (event.key !== "Enter") return;
-        var input = event.target;
-        if (!input.classList.contains("name")) return;
-        event.preventDefault();
-        input.blur();
       });
     })();
   </script>
 </Layout>
-
-<style is:global>
-  body.admin {
-    background: var(--bg);
-    touch-action: manipulation;
-  }
-
-  body.admin .wrap {
-    width: min(40rem, 100%);
-    margin: 0 auto;
-    padding:
-      max(1rem, env(safe-area-inset-top))
-      max(1rem, env(safe-area-inset-right))
-      max(1.5rem, env(safe-area-inset-bottom))
-      max(1rem, env(safe-area-inset-left));
-  }
-
-  body.admin .top {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 0.75rem;
-    margin-bottom: 1.1rem;
-  }
-
-  body.admin .eyebrow {
-    margin: 0 0 0.15rem;
-    color: var(--muted);
-    font-size: 0.8rem;
-    font-weight: 650;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-
-  body.admin h1 {
-    margin: 0;
-    font-size: 1.7rem;
-    letter-spacing: -0.03em;
-  }
-
-  body.admin .save-status {
-    margin: 0;
-    min-height: 1.25rem;
-    font-size: 0.92rem;
-    color: var(--muted);
-    text-align: right;
-  }
-
-  body.admin .save-status[data-kind="pending"] {
-    color: var(--muted);
-  }
-
-  body.admin .save-status[data-kind="ok"] {
-    color: var(--green);
-  }
-
-  body.admin .save-status[data-kind="error"] {
-    color: var(--error);
-    cursor: pointer;
-    font-weight: 650;
-  }
-
-  body.admin .banner {
-    margin: 0 0 1rem;
-    padding: 0.75rem 0.85rem;
-    background: var(--yellow-bg);
-    border: 1px solid var(--yellow);
-    border-radius: 0.65rem;
-    color: var(--text);
-  }
-
-  body.admin .block {
-    margin-bottom: 1rem;
-  }
-
-  body.admin label,
-  body.admin #title-label,
-  body.admin #add-label {
-    display: block;
-    margin-bottom: 0.35rem;
-    font-size: 0.85rem;
-    font-weight: 650;
-    color: var(--muted);
-  }
-
-  body.admin input {
-    width: 100%;
-    min-height: 2.9rem;
-    padding: 0.55rem 0.75rem;
-    border: 1px solid var(--line);
-    border-radius: 0.6rem;
-    background: #fff;
-  }
-
-  body.admin .add-row {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 0.5rem;
-  }
-
-  body.admin .add-row button {
-    min-width: 5.2rem;
-    min-height: 2.9rem;
-    padding: 0 1rem;
-    border: 0;
-    border-radius: 0.6rem;
-    background: var(--text);
-    color: #fff;
-    font-weight: 650;
-  }
-
-  body.admin .list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    gap: 0.75rem;
-  }
-
-  body.admin .card {
-    background: #fff;
-    border: 1px solid var(--line);
-    border-radius: 0.85rem;
-    padding: 0.85rem;
-    border-left: 0.65rem solid var(--line);
-  }
-
-  body.admin .card[data-confidence="red"] {
-    border-left-color: var(--red);
-    background: var(--red-bg);
-  }
-
-  body.admin .card[data-confidence="yellow"] {
-    border-left-color: var(--yellow);
-    background: var(--yellow-bg);
-  }
-
-  body.admin .card[data-confidence="green"] {
-    border-left-color: var(--green);
-    background: var(--green-bg);
-  }
-
-  body.admin .card-head {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 0.5rem;
-    align-items: center;
-    margin-bottom: 0.65rem;
-  }
-
-  body.admin .name {
-    font-size: 1.05rem;
-    font-weight: 650;
-  }
-
-  body.admin .segment {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 0.4rem;
-  }
-
-  body.admin .seg {
-    min-height: 3rem;
-    border-radius: 0.55rem;
-    border: 1px solid var(--line);
-    background: #fff;
-    font-weight: 700;
-    touch-action: manipulation;
-  }
-
-  body.admin .seg.red {
-    color: var(--red);
-    border-color: var(--red);
-  }
-
-  body.admin .seg.yellow {
-    color: var(--yellow);
-    border-color: var(--yellow);
-  }
-
-  body.admin .seg.green {
-    color: var(--green);
-    border-color: var(--green);
-  }
-
-  body.admin .seg[aria-pressed="true"].red {
-    background: var(--red);
-    color: #fff;
-  }
-
-  body.admin .seg[aria-pressed="true"].yellow {
-    background: var(--yellow-fill);
-    color: #1c1a10;
-    border-color: var(--yellow);
-  }
-
-  body.admin .seg[aria-pressed="true"].green {
-    background: var(--green);
-    color: #fff;
-  }
-
-  body.admin .reorder {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.35rem;
-    margin-top: 0.6rem;
-  }
-
-  body.admin .text-btn {
-    min-height: 2.5rem;
-    padding: 0 0.7rem;
-    border: 0;
-    background: transparent;
-    color: var(--muted);
-    font-weight: 650;
-  }
-
-  body.admin .text-btn:disabled {
-    opacity: 0.35;
-    cursor: default;
-  }
-
-  body.admin .text-btn.danger {
-    color: var(--red);
-  }
-
-  body.admin .empty {
-    color: var(--muted);
-    margin: 0.5rem 0 0;
-  }
-
-  body.admin .foot {
-    margin: 1.5rem 0 0;
-    color: var(--muted);
-    font-size: 0.92rem;
-  }
-
-  body.admin .foot a {
-    color: var(--text);
-  }
-</style>

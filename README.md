@@ -74,4 +74,17 @@ There is no login. Treat the URL as private.
 
 ## 8. Default topics
 
-Edit `src/lib/defaults.ts`. Those topics are used only when the database is empty (first launch). Changing that file later does not overwrite topics you have already saved.
+Edit topics in admin as a normal text file: `# Heading` then one topic per line. **Save** builds the cards. New headings/topics default to Need (red); existing tags stay as they are.
+
+## 9. Anki cards on the display
+
+Anki has no public API the Pi site can use, so the dashboard cannot log into your Anki account. Export the deck instead:
+
+1. Anki desktop → the deck → **File → Export**
+2. Type: **Notes in Plain Text** (tab-separated; `#separator:tab` headers are ignored)
+3. Include the note fields (Front/Back, or **Text** and **Extra** for cloze)
+4. On `/admin`, **Upload** the `.txt` (or paste into **anki.txt** and **Save**)
+
+The bottom of the display then cycles: **front for 30s**, then **back**, then a **new card after 2 minutes**, looping forever. This is a viewer only — it does not record reviews in Anki.
+
+Cloze notes (`{{c1::answer}}`) show `[...]` on the front and the highlighted answer on the back. The Extra field (text after the tab) appears under the answer.

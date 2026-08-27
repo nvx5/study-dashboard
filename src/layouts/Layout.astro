@@ -1,4 +1,8 @@
 ---
+import "../styles/global.css";
+import "../styles/display.css";
+import "../styles/admin.css";
+
 interface Props {
   title: string;
   page: "display" | "admin";
@@ -18,11 +22,20 @@ const isDisplay = page === "display";
         ? "width=device-width, initial-scale=1, viewport-fit=cover"
         : "width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"}
     />
-    <meta name="color-scheme" content="light" />
+    <meta name="color-scheme" content="dark" />
     <meta name="robots" content="noindex, nofollow" />
+    {isDisplay && <meta http-equiv="Cache-Control" content="no-store" />}
     <meta name="description" content={isDisplay ? "Study topic confidence display" : "Study topic controls"} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>{title}</title>
+    <style is:inline>
+      html,
+      body {
+        margin: 0;
+        background: #0d1117;
+        color: #e6edf3;
+      }
+    </style>
   </head>
   <body class={page}>
     <slot />

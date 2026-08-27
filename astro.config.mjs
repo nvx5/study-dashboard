@@ -12,6 +12,9 @@ export default defineConfig({
     enabled: false,
   },
   vite: {
+    build: {
+      cssCodeSplit: false,
+    },
     ssr: {
       optimizeDeps: {
         include: ["astro/assets/services/noop"],

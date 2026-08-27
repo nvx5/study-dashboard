@@ -7,26 +7,20 @@ function json(data: unknown, status = 200, extra: HeadersInit = {}): Response {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
+      "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+      "CDN-Cache-Control": "no-store",
+      "Cloudflare-CDN-Cache-Control": "no-store",
+      Pragma: "no-cache",
+      Expires: "0",
       ...extra,
     },
   });
 }
 
-export const GET: APIRoute = async ({ request }) => {
+export const GET: APIRoute = async () => {
   try {
     const state = await getState();
-    const etag = `"${state.updatedAt}"`;
-    if (request.headers.get("If-None-Match") === etag) {
-      return new Response(null, {
-        status: 304,
-        headers: {
-          ETag: etag,
-          "Cache-Control": "no-store",
-        },
-      });
-    }
-    return json(state, 200, { ETag: etag });
+    return json(state);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not load topics";
     console.error("GET /api/topics", error);
@@ -52,8 +46,12 @@ export const PUT: APIRoute = async ({ request }) => {
 
   try {
     const state = await setState(incoming);
-    return json(state, 200, { ETag: `"${state.updatedAt}"` });
-  } catch {
+    return json(state);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not save topics";
+    if (message.startsWith("No categories")) {
+      return json({ error: message }, 400);
+    }
     return json({ error: "Could not save topics" }, 500);
   }
 };

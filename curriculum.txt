@@ -1,0 +1,787 @@
+// Categories start with "# ". Topics are the plain lines under each heading.
+// Edit this file, then deploy. Confidence and collapse are saved in the database.
+
+# 1. Cardiovascular Medicine
+Cardiovascular physiology & haemodynamics
+Coronary artery disease & myocardial ischaemia
+Acute coronary syndromes
+Heart failure & ventricular dysfunction
+Cardiac arrhythmias
+Conduction disorders & bradyarrhythmias
+Valvular heart disease
+Cardiomyopathies
+Pericardial disease
+Infective endocarditis
+Hypertension
+Pulmonary hypertension & right heart disease
+Aortic disease
+Peripheral arterial disease
+Syncope & cardiovascular collapse
+Cardiovascular prevention & lipid management
+
+# 2. Respiratory Medicine
+Respiratory physiology
+Pulmonary gas exchange
+Oxygen transport & delivery
+Ventilation & ventilatory failure
+Pulmonary function testing
+Asthma
+COPD
+Respiratory infections
+Pleural disease
+Pneumothorax
+Interstitial lung disease
+Bronchiectasis & suppurative lung disease
+Pulmonary vascular disease
+Lung malignancy
+Occupational & environmental lung disease
+Sleep-disordered breathing
+Acute respiratory failure
+Oxygen therapy & ventilatory support
+
+# 3. Renal Medicine
+Renal physiology
+Renal blood flow & glomerular filtration
+Tubular function
+Water handling & osmoregulation
+Sodium physiology
+Potassium physiology
+Calcium, magnesium & phosphate physiology
+Acute kidney injury
+Chronic kidney disease
+Glomerular disease
+Tubulointerstitial disease
+Nephrotic & nephritic syndromes
+Renovascular disease
+Hereditary & cystic renal disease
+Renal replacement therapy
+Drug dosing in renal impairment
+
+# 4. Fluids & Electrolytes
+Body fluid compartments
+Fluid balance & volume status
+Intravenous fluid therapy
+Sodium disorders
+Potassium disorders
+Calcium disorders
+Magnesium disorders
+Phosphate disorders
+Osmolality & tonicity
+Disorders of water balance
+Fluid resuscitation
+Maintenance & replacement fluids
+
+# 5. Acid–Base Physiology
+Acid–base chemistry
+Physiological buffering
+Renal acid–base regulation
+Respiratory acid–base regulation
+Metabolic acidosis
+Metabolic alkalosis
+Respiratory acidosis
+Respiratory alkalosis
+Mixed acid–base disorders
+Physiological compensation
+Anion gap
+Delta gap
+Lactate & lactic acidosis
+Blood gas interpretation
+Henderson–Hasselbalch approach
+Stewart / physicochemical principles
+
+# 6. Gastroenterology
+Gastrointestinal physiology
+Oesophageal disease
+Gastric & duodenal disease
+Peptic ulcer disease
+Gastrointestinal haemorrhage
+Small bowel disease
+Malabsorption
+Coeliac disease
+Inflammatory bowel disease
+Functional gastrointestinal disease
+Colonic disease
+Diverticular disease
+Gastrointestinal malignancy
+Gastrointestinal motility disorders
+Diarrhoea
+Constipation
+Gastrointestinal infection
+
+# 7. Hepatology & Pancreaticobiliary Medicine
+Liver physiology
+Bilirubin metabolism & jaundice
+Liver function testing
+Acute liver injury & failure
+Viral hepatitis
+Alcohol-related liver disease
+Metabolic-associated fatty liver disease
+Autoimmune liver disease
+Metabolic & inherited liver disease
+Cirrhosis
+Portal hypertension
+Ascites
+Hepatic encephalopathy
+Variceal disease
+Hepatic malignancy
+Gallstone disease
+Biliary obstruction
+Cholangitis & cholecystitis
+Acute pancreatitis
+Chronic pancreatitis
+Pancreatic malignancy
+
+# 8. Endocrinology
+Endocrine physiology
+Hypothalamic–pituitary physiology
+Thyroid physiology & disease
+Adrenal physiology & disease
+Pituitary disease
+Parathyroid disease
+Calcium homeostasis
+Diabetes mellitus
+Diabetic emergencies
+Diabetic complications
+Hypoglycaemia
+Disorders of ADH & water regulation
+Reproductive endocrinology
+Endocrine hypertension
+Neuroendocrine tumours
+Endocrine emergencies
+
+# 9. Metabolism & Nutrition
+Energy metabolism
+Carbohydrate metabolism
+Lipid metabolism
+Protein metabolism
+Metabolic response to illness
+Obesity
+Malnutrition
+Nutritional assessment
+Vitamins & micronutrients
+Enteral nutrition
+Parenteral nutrition
+Refeeding syndrome
+Metabolic syndrome
+
+# 10. Haematology
+Haematopoiesis
+Red cell physiology
+Anaemia
+Iron metabolism
+Megaloblastic disease
+Haemolytic disorders
+Haemoglobinopathies
+White cell disorders
+Leukaemia
+Lymphoma
+Plasma cell disorders
+Myeloproliferative disease
+Platelet disorders
+Coagulation physiology
+Bleeding disorders
+Thrombophilia
+Venous thromboembolism
+Disseminated intravascular coagulation
+Blood transfusion
+Transfusion reactions
+
+# 11. Immunology, Allergy & Host Defence
+Innate immunity
+Adaptive immunity
+Inflammation
+Complement
+Hypersensitivity reactions
+Autoimmunity
+Immunodeficiency
+Immunosuppression
+Allergy
+Anaphylaxis
+Angioedema
+Transplant immunology
+
+# 12. Infectious Disease & Microbiology
+Principles of microbiology
+Antimicrobial therapy
+Antimicrobial resistance
+Sepsis
+Bacteraemia
+Respiratory infection
+CNS infection
+Gastrointestinal infection
+Urinary infection
+Skin & soft-tissue infection
+Bone & joint infection
+Endocarditis
+Tuberculosis
+HIV medicine
+Opportunistic infections
+Viral infections
+Sexually transmitted infections
+Tropical medicine
+Travel medicine
+Infection prevention & control
+Healthcare-associated infection
+Fever of unknown origin
+
+# 13. Neurology
+Neurophysiology
+Cerebral circulation
+Consciousness & coma
+Cerebrovascular disease
+Stroke & TIA
+Epilepsy & seizures
+Headache disorders
+Movement disorders
+Parkinsonism
+Demyelinating disease
+Peripheral neuropathy
+Neuromuscular junction disease
+Muscle disease
+Cranial nerve disorders
+Spinal cord disease
+Neurodegenerative disease
+Dementia
+Intracranial hypertension
+CNS tumours
+Neurological emergencies
+
+# 14. Rheumatology
+Immunological basis of rheumatic disease
+Inflammatory arthritis
+Rheumatoid arthritis
+Spondyloarthropathies
+Crystal arthropathy
+Connective tissue disease
+Systemic lupus erythematosus
+Systemic sclerosis
+Sjögren syndrome
+Inflammatory myopathy
+Systemic vasculitis
+Giant cell arteritis & polymyalgia rheumatica
+Septic arthritis
+Osteoarthritis
+Rheumatological therapeutics
+
+# 15. Musculoskeletal & Orthopaedic Medicine
+Bone physiology
+Bone metabolism
+Osteoporosis & fragility fractures
+Osteomalacia
+Metabolic bone disease
+Back pain
+Radiculopathy
+Cauda equina & spinal compression
+Shoulder disorders
+Hip disorders
+Knee disorders
+Hand & wrist disorders
+Foot & ankle disorders
+Sports & soft-tissue injuries
+Fractures
+Dislocations
+Compartment syndrome
+Orthopaedic infection
+Bone tumours
+
+# 16. General Surgery
+Principles of surgical assessment
+Acute abdomen
+Surgical sepsis
+Peritonitis
+Gastrointestinal perforation
+Intestinal obstruction
+Small bowel obstruction
+Large bowel obstruction
+Volvulus
+Acute appendicitis
+Diverticulitis
+Mesenteric ischaemia
+Hernias
+Gallstone disease
+Acute cholecystitis
+Ascending cholangitis
+Acute pancreatitis
+Upper gastrointestinal bleeding
+Lower gastrointestinal bleeding
+Colorectal disease
+Colorectal malignancy
+Oesophagogastric malignancy
+Hepatopancreatobiliary malignancy
+Breast disease
+Breast malignancy
+Abdominal wall disease
+Stomas
+Wound healing
+Surgical site infection
+Postoperative complications
+Surgical drains & tubes
+Nutrition in surgical patients
+
+# 17. Vascular Surgery
+Peripheral arterial disease
+Acute limb ischaemia
+Chronic limb-threatening ischaemia
+Aortic aneurysm
+Ruptured abdominal aortic aneurysm
+Aortic dissection
+Carotid disease
+Venous disease
+Varicose veins
+Deep vein thrombosis
+Diabetic foot disease
+Vascular ulcers
+
+# 18. Urology
+Lower urinary tract physiology
+Urinary tract infection
+Pyelonephritis
+Urolithiasis
+Urinary obstruction
+Acute urinary retention
+Chronic urinary retention
+Benign prostatic enlargement
+Prostatitis
+Haematuria
+Urinary incontinence
+Neurogenic bladder
+Renal malignancy
+Bladder malignancy
+Prostate malignancy
+Testicular malignancy
+Testicular torsion
+Epididymal & scrotal disease
+Urological emergencies
+
+# 19. Perioperative Medicine
+Preoperative assessment
+Surgical risk assessment
+Cardiopulmonary risk
+Functional capacity
+Perioperative medication management
+Anticoagulation & antiplatelet management
+Diabetes & surgery
+Steroids & surgery
+Fluid management
+Blood loss & transfusion
+Postoperative analgesia
+Postoperative nausea & vomiting
+Postoperative fever
+Postoperative hypotension
+Postoperative hypoxia
+Postoperative oliguria
+Postoperative delirium
+Postoperative infection
+Venous thromboembolism prophylaxis
+Enhanced recovery principles
+
+# 20. Critical Care & Acute Physiology
+Recognition of critical illness
+ABCDE assessment
+Airway physiology & airway emergencies
+Respiratory failure
+Circulatory failure
+Shock physiology
+Hypovolaemic shock
+Distributive shock
+Cardiogenic shock
+Obstructive shock
+Sepsis & septic shock
+Oxygen delivery & tissue perfusion
+Lactate physiology
+Fluid responsiveness
+Vasopressors & inotropes
+Acute organ dysfunction
+Multiple organ dysfunction
+Cardiac arrest & resuscitation
+Post-resuscitation care
+
+# 21. Pharmacology & Therapeutics
+Pharmacokinetics
+Pharmacodynamics
+Drug absorption & bioavailability
+Drug distribution
+Drug metabolism
+Drug elimination
+Drug half-life & steady state
+Dose-response relationships
+Receptor pharmacology
+Drug interactions
+Adverse drug reactions
+Therapeutic drug monitoring
+Prescribing in renal impairment
+Prescribing in hepatic impairment
+Prescribing in pregnancy
+Prescribing in older adults
+Polypharmacy & deprescribing
+Antimicrobials
+Cardiovascular pharmacology
+Respiratory pharmacology
+Endocrine pharmacology
+Gastrointestinal pharmacology
+Neuropharmacology
+Psychopharmacology
+Analgesia
+Anticoagulants & antiplatelets
+Immunosuppression
+
+# 22. Toxicology
+Principles of poisoning
+Toxidromes
+Drug overdose assessment
+Paracetamol toxicity
+Salicylate toxicity
+Opioid toxicity
+Tricyclic antidepressant toxicity
+Benzodiazepine toxicity
+Serotonin syndrome
+Neuroleptic malignant syndrome
+Carbon monoxide poisoning
+Alcohol intoxication & withdrawal
+Toxic alcohols
+Recreational drugs
+Antidotes
+Enhanced elimination
+
+# 23. Dermatology
+Structure & physiology of skin
+Dermatological morphology
+Eczema & dermatitis
+Psoriasis
+Acne & rosacea
+Bacterial skin disease
+Viral skin disease
+Fungal skin disease
+Parasitic skin disease
+Urticaria
+Drug eruptions
+Autoimmune skin disease
+Bullous disorders
+Vasculitic skin disease
+Pigment disorders
+Hair & nail disease
+Skin malignancy
+Dermatological emergencies
+
+# 24. Ophthalmology
+Ocular anatomy & physiology
+Visual pathways
+Red eye
+Acute visual loss
+Chronic visual loss
+Glaucoma
+Cataract
+Retinal vascular disease
+Retinal detachment
+Macular disease
+Diabetic eye disease
+Optic nerve disease
+Uveitis
+Corneal disease
+Ocular trauma
+Ophthalmological emergencies
+
+# 25. ENT
+Auditory physiology
+Vestibular physiology
+Otological disease
+Hearing loss
+Tinnitus
+Vertigo
+Nasal disease
+Sinus disease
+Epistaxis
+Tonsillar & pharyngeal disease
+Laryngeal disease
+Neck lumps
+Salivary gland disease
+Head & neck malignancy
+ENT emergencies
+
+# 26. Obstetrics
+Maternal physiological adaptation to pregnancy
+Antenatal care
+Fetal development & surveillance
+Early pregnancy complications
+Miscarriage
+Ectopic pregnancy
+Hyperemesis
+Hypertensive disorders of pregnancy
+Diabetes in pregnancy
+Antepartum haemorrhage
+Labour & delivery
+Fetal monitoring
+Obstetric analgesia
+Obstetric emergencies
+Postpartum haemorrhage
+Puerperium
+Postpartum complications
+Medication in pregnancy & breastfeeding
+
+# 27. Gynaecology & Reproductive Medicine
+Reproductive physiology
+Menstrual physiology
+Menstrual disorders
+Amenorrhoea
+Abnormal uterine bleeding
+Dysmenorrhoea
+Endometriosis
+Adenomyosis
+Polycystic ovary syndrome
+Fibroids
+Ovarian disease
+Pelvic inflammatory disease
+Infertility
+Contraception
+Emergency contraception
+Menopause
+Hormone replacement therapy
+Cervical disease
+Endometrial disease
+Ovarian malignancy
+Vulval disease
+Gynaecological emergencies
+
+# 28. Male Reproductive Medicine
+Male reproductive physiology
+Erectile dysfunction
+Male infertility
+Testicular disorders
+Scrotal swellings
+Testicular torsion
+Prostate disease
+Male reproductive malignancy
+
+# 29. Paediatrics
+Paediatric physiology
+Growth & development
+Developmental milestones
+Neonatal medicine
+Neonatal jaundice
+Feeding & nutrition
+The febrile child
+Paediatric respiratory disease
+Paediatric gastrointestinal disease
+Paediatric infection
+Paediatric neurology
+Paediatric cardiology
+Paediatric endocrinology
+Paediatric renal disease
+Paediatric haematology
+Paediatric dermatology
+Paediatric musculoskeletal disease
+Congenital disease
+Genetic & metabolic disease
+Paediatric emergencies
+Safeguarding children
+
+# 30. Psychiatry
+Mental state examination
+Psychiatric assessment
+Depression
+Bipolar disorder
+Psychotic disorders
+Anxiety disorders
+Obsessive-compulsive disorder
+Trauma-related disorders
+Personality disorders
+Eating disorders
+Substance misuse
+Alcohol dependence
+Sleep disorders
+Perinatal psychiatry
+Old-age psychiatry
+Delirium
+Dementia
+Self-harm & suicide
+Psychiatric emergencies
+Capacity
+Mental Health Act principles
+
+# 31. Geriatric Medicine
+Physiology of ageing
+Frailty
+Comprehensive geriatric assessment
+Falls
+Syncope & orthostatic hypotension
+Delirium
+Dementia
+Polypharmacy
+Incontinence
+Immobility
+Pressure injury
+Malnutrition
+Osteoporosis
+End-of-life care
+Capacity & best interests
+
+# 32. Oncology
+Biology of malignancy
+Principles of cancer diagnosis
+Cancer screening
+Cancer referral pathways
+Cancer staging
+Principles of surgery
+Principles of chemotherapy
+Principles of radiotherapy
+Immunotherapy
+Treatment complications
+Neutropenic sepsis
+Tumour lysis syndrome
+Malignant hypercalcaemia
+Superior vena cava obstruction
+Malignant spinal cord compression
+Brain metastases
+Cancer-associated thrombosis
+Cancer pain
+Palliative oncology
+
+# 33. Palliative Medicine
+Principles of palliative care
+Pain physiology & analgesia
+Opioid prescribing
+Breathlessness
+Nausea & vomiting
+Agitation & delirium
+Respiratory secretions
+Constipation
+Malignant bowel obstruction
+End-of-life prescribing
+Recognising dying
+Treatment escalation
+DNACPR
+Communication at end of life
+
+# 34. Trauma & Emergency Surgery
+Primary trauma assessment
+Secondary survey
+Haemorrhagic shock
+Head injury
+Spinal injury
+Chest trauma
+Abdominal trauma
+Pelvic trauma
+Limb trauma
+Fractures
+Dislocations
+Neurovascular injury
+Compartment syndrome
+Burns
+Wound management
+Tetanus prophylaxis
+Major haemorrhage
+
+# 35. Clinical Physiology & Monitoring
+Blood pressure measurement
+ECG principles & interpretation
+Cardiac monitoring
+Pulse oximetry
+Capnography
+Arterial blood gases
+Spirometry
+Peak expiratory flow
+Fluid balance
+Urine output
+Temperature regulation
+Consciousness assessment
+Glasgow Coma Scale
+Early warning scores
+
+# 36. Clinical Biochemistry & Laboratory Medicine
+Full blood count interpretation
+Anaemia patterns
+Renal profile interpretation
+Liver profile interpretation
+Bone profile interpretation
+Coagulation studies
+Inflammatory markers
+Cardiac biomarkers
+Endocrine investigations
+Osmolality
+Acid–base investigations
+Haemolysis investigations
+Iron studies
+B12 & folate
+Protein electrophoresis
+Immunological testing
+Microbiological investigations
+
+# 37. Clinical Imaging
+Principles of radiology
+Chest radiography
+Abdominal radiography
+Musculoskeletal radiography
+CT head
+CT chest
+CT abdomen & pelvis
+CT angiography
+Ultrasound
+Echocardiography
+MRI principles
+Nuclear medicine principles
+Contrast-associated considerations
+
+# 38. Preventive Medicine & Screening
+Cardiovascular risk assessment
+Smoking cessation
+Alcohol interventions
+Weight management
+Vaccination
+Cancer screening
+Antenatal screening
+Infectious disease screening
+Osteoporosis prevention
+Diabetes prevention
+Sexual health prevention
+Travel health
+
+# 39. Genetics & Inherited Disease
+Mendelian inheritance
+Chromosomal disorders
+Mitochondrial inheritance
+Penetrance & expressivity
+Genetic testing
+Genetic counselling
+Prenatal diagnosis
+Common inherited syndromes
+Inherited metabolic disease
+Pharmacogenetics
+
+# 40. Clinical Reasoning & Syndromes
+Chest pain
+Dyspnoea
+Palpitations
+Syncope
+Shock
+Fever
+Weight loss
+Fatigue
+Lymphadenopathy
+Anaemia
+Bleeding
+Thrombosis
+Acute abdominal pain
+Jaundice
+Gastrointestinal bleeding
+Vomiting
+Diarrhoea
+Constipation
+Dysphagia
+Acute kidney injury
+Haematuria
+Oliguria
+Polyuria
+Electrolyte disturbance
+Altered consciousness
+Headache
+Seizure
+Weakness
+Dizziness & vertigo
+Joint pain
+Back pain
+Rash
+Acute visual disturbance
+Acute pelvic pain
+Vaginal bleeding
+Scrotal pain
+The acutely unwell child

@@ -1,0 +1,223 @@
+html:has(body.display),
+body.display {
+  height: 100%;
+  overflow: hidden;
+}
+
+body.display {
+  overscroll-behavior: contain;
+  cursor: auto;
+}
+
+body.display .frame {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100dvh;
+  overflow: hidden;
+  padding:
+    max(0.75rem, env(safe-area-inset-top))
+    max(0.75rem, env(safe-area-inset-right))
+    max(0.75rem, env(safe-area-inset-bottom))
+    max(0.75rem, env(safe-area-inset-left));
+}
+
+body.display .stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: none;
+}
+
+body.display .stage::-webkit-scrollbar {
+  display: none;
+}
+
+body.display .board {
+  columns: 2;
+  column-gap: 16px;
+}
+
+body.display .anki {
+  --anki-dock: 26vh;
+  flex: 0 0 var(--anki-dock);
+  height: var(--anki-dock);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0;
+  background: var(--row);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+body.display .anki-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+body.display .anki-title {
+  font-size: 14px;
+}
+
+body.display .anki-side {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+body.display .anki-count {
+  margin-left: auto;
+  color: var(--muted);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+body.display .anki-text {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 12px 16px;
+  overflow: auto;
+  font-size: 18px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+body.display .anki-text .cloze {
+  color: #99ebff;
+  font-weight: 650;
+}
+
+body.display .anki-extra-rule {
+  border: 0;
+  border-bottom: 1px dashed var(--line);
+  margin: 12px 0;
+}
+
+body.display .anki-extra {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+body.display .empty {
+  margin: 4rem auto 0;
+  text-align: center;
+  color: var(--muted);
+}
+
+body.display .cat {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  background: var(--row);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin: 0 0 16px;
+  overflow: hidden;
+}
+
+body.display .cat h2 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 8px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+body.display .cat[data-collapsed="true"] h2 {
+  border-bottom: 0;
+}
+
+body.display .cat-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+body.display .cat-progress {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+body.display .cat ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+body.display .cat li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 16px;
+  border-top: 1px solid var(--line);
+  min-height: 37px;
+}
+
+body.display .cat li:first-child {
+  border-top: 0;
+}
+
+body.display .cat li:hover {
+  background: var(--row-hover);
+}
+
+body.display .topic-name {
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+body.display .tag {
+  flex: 0 0 auto;
+  padding: 0 7px;
+  border: 1px solid;
+  border-radius: 2em;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+body.display .tag[data-confidence="red"] {
+  background: var(--tag-red-bg);
+  color: var(--tag-red-text);
+  border-color: var(--tag-red-border);
+}
+
+body.display .tag[data-confidence="yellow"] {
+  background: var(--tag-yellow-bg);
+  color: var(--tag-yellow-text);
+  border-color: var(--tag-yellow-border);
+}
+
+body.display .tag[data-confidence="green"] {
+  background: var(--tag-green-bg);
+  color: var(--tag-green-text);
+  border-color: var(--tag-green-border);
+}
+
+@media (max-width: 900px), (orientation: portrait) {
+  body.display .board {
+    columns: 1;
+  }
+}

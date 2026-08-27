@@ -15,3 +15,8 @@ interface D1Database {
 declare module "cloudflare:workers" {
   export const env: Env;
 }
+
+declare module "*.txt?raw" {
+  const text: string;
+  export default text;
+}

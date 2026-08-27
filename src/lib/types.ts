@@ -1,6 +1,10 @@
+import type { AnkiCard } from "./anki";
+
 export const CONFIDENCE = ["red", "yellow", "green"] as const;
+export const THEMES = ["light", "dark"] as const;
 
 export type Confidence = (typeof CONFIDENCE)[number];
+export type Theme = (typeof THEMES)[number];
 
 export type Topic = {
   id: string;
@@ -9,9 +13,25 @@ export type Topic = {
   order: number;
 };
 
-export type AppState = {
-  title: string;
+export type Category = {
+  id: string;
+  name: string;
+  order: number;
+  collapsed: boolean;
   topics: Topic[];
+};
+
+export type AppState = {
+  version: number;
+  title: string;
+  theme: Theme;
+  source: string;
+  categories: Category[];
+  ankiSource: string;
+  ankiCards: AnkiCard[];
+  ankiHidden: boolean;
+  ankiHeightVh: number;
+  ankiCycleAt: number;
   updatedAt: number;
 };
 
@@ -21,6 +41,9 @@ export const STATUS_LABEL: Record<Confidence, string> = {
   green: "Confident",
 };
 
-export const MAX_TOPICS = 200;
+export const DATA_VERSION = 2;
+export const MAX_CATEGORIES = 80;
+export const MAX_TOPICS_PER_CATEGORY = 100;
 export const MAX_NAME_LENGTH = 200;
-export const MAX_TITLE_LENGTH = 80;
+export const MAX_TITLE_LENGTH = 120;
+export const MAX_SOURCE_LENGTH = 200_000;
