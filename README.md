@@ -56,11 +56,13 @@ You can also import this repo in the Cloudflare dashboard (Workers), using build
 
 ## 6. Raspberry Pi display URL
 
-Use the Worker URL root:
+Point the Pi browser at the Worker URL root:
 
 `https://<your-worker>.workers.dev/`
 
-Point Chromium kiosk mode at that URL, for example:
+After a deploy, power-cycle the Pi so it loads the new page JS. Data updates (tags, Anki) do not require a reboot once this script is running; they arrive by polling.
+
+The tiny [buildroot-webkit](https://github.com/TOLDOTECHNIK/buildroot-webkit) kiosk OS uses an old WPE WebKit (not Chromium). The display script is written for that. If you later use a bigger SD card, Raspberry Pi OS + Chromium kiosk also works:
 
 ```bash
 chromium-browser --kiosk --noerrdialogs --disable-infobars https://<your-worker>.workers.dev/

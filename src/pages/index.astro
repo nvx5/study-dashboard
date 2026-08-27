@@ -116,6 +116,26 @@ const boot = JSON.stringify({
       var FRONT_MS = (boot.anki && boot.anki.frontMs) || 30000;
       var CARD_MS = (boot.anki && boot.anki.cardMs) || 120000;
       var ankiKey = "";
+      var pollTimer = 0;
+      var pollBusy = false;
+
+      function isArray(value) {
+        return Object.prototype.toString.call(value) === "[object Array]";
+      }
+
+      function nowMs() {
+        return new Date().getTime();
+      }
+
+      function setHidden(el, hide) {
+        if (!el) return;
+        if (hide) el.setAttribute("hidden", "hidden");
+        else el.removeAttribute("hidden");
+      }
+
+      function clearNode(el) {
+        while (el.firstChild) el.removeChild(el.firstChild);
+      }
 
       function persist() {
         try {
@@ -124,15 +144,15 @@ const boot = JSON.stringify({
       }
 
       function paint() {
-        waitingEl.hidden = true;
+        setHidden(waitingEl, true);
 
         if (!state.categories.length) {
-          boardEl.replaceChildren();
-          emptyEl.hidden = false;
+          clearNode(boardEl);
+          setHidden(emptyEl, false);
           return;
         }
 
-        emptyEl.hidden = true;
+        setHidden(emptyEl, true);
         var frag = document.createDocumentFragment();
         for (var c = 0; c < state.categories.length; c++) {
           var category = state.categories[c];
@@ -146,8 +166,9 @@ const boot = JSON.stringify({
           var progress = document.createElement("span");
           progress.className = "cat-progress";
           progress.textContent = progressLabel(category);
-          heading.append(title, progress);
-          article.append(heading);
+          heading.appendChild(title);
+          heading.appendChild(progress);
+          article.appendChild(heading);
           if (!category.collapsed) {
             var list = document.createElement("ul");
             for (var t = 0; t < category.topics.length; t++) {
@@ -160,25 +181,27 @@ const boot = JSON.stringify({
               tag.className = "tag";
               tag.setAttribute("data-confidence", topic.confidence);
               tag.textContent = labels[topic.confidence] || topic.confidence;
-              li.append(name, tag);
-              list.append(li);
+              li.appendChild(name);
+              li.appendChild(tag);
+              list.appendChild(li);
             }
-            article.append(list);
+            article.appendChild(list);
           }
-          frag.append(article);
+          frag.appendChild(article);
         }
-        boardEl.replaceChildren(frag);
+        clearNode(boardEl);
+        boardEl.appendChild(frag);
       }
 
       function ankiCards() {
-        return Array.isArray(state.ankiCards) ? state.ankiCards : [];
+        return isArray(state.ankiCards) ? state.ankiCards : [];
       }
 
       function ankiPos() {
         var cards = ankiCards();
         if (!cards.length) return null;
-        var origin = typeof state.ankiCycleAt === "number" ? state.ankiCycleAt : Date.now();
-        var elapsed = Math.max(0, Date.now() - origin);
+        var origin = typeof state.ankiCycleAt === "number" ? state.ankiCycleAt : nowMs();
+        var elapsed = Math.max(0, nowMs() - origin);
         var index = Math.floor(elapsed / CARD_MS) % cards.length;
         var inCard = elapsed % CARD_MS;
         return {
@@ -191,12 +214,17 @@ const boot = JSON.stringify({
       function paintAnki() {
         if (!ankiEl || !ankiText || !ankiSide) return;
         var pos = ankiPos();
-        var show = pos && !state.ankiHidden;
-        ankiEl.hidden = !show;
+        var show = !!(pos && !state.ankiHidden);
+        setHidden(ankiEl, !show);
         if (frameEl) frameEl.setAttribute("data-anki", show ? "on" : "off");
         var height = Number(state.ankiHeightVh);
-        if (Number.isFinite(height) && height > 0) {
-          ankiEl.style.setProperty("--anki-dock", height + "vh");
+        if (height === height && height > 0) {
+          var dock = height + "vh";
+          try {
+            ankiEl.style.setProperty("--anki-dock", dock);
+          } catch (err) {}
+          ankiEl.style.height = dock;
+          ankiEl.style.flexBasis = dock;
         }
         if (!pos) return;
         var card = pos.cards[pos.index];
@@ -221,12 +249,68 @@ const boot = JSON.stringify({
         return done + "/" + total + " (" + pct + "%)";
       }
 
+      function applyPayload(next) {
+        if (!next || !isArray(next.categories)) return;
+        var prev = JSON.stringify(state.categories);
+        var incoming = JSON.stringify(next.categories);
+        state = next;
+        persist();
+        if (prev !== incoming) paint();
+        syncAnkiDeck();
+      }
+
+      function poll() {
+        if (pollBusy) return;
+        pollBusy = true;
+        var url = "/api/topics?t=" + nowMs() + "&n=" + Math.random();
+        var xhr = new XMLHttpRequest();
+        var finished = false;
+        var abortTimer = setTimeout(function () {
+          if (finished) return;
+          try {
+            xhr.abort();
+          } catch (err) {}
+        }, 8000);
+
+        function done() {
+          if (finished) return;
+          finished = true;
+          pollBusy = false;
+          clearTimeout(abortTimer);
+          clearTimeout(pollTimer);
+          pollTimer = setTimeout(poll, POLL_MS);
+        }
+
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState !== 4) return;
+          try {
+            if (xhr.status >= 200 && xhr.status < 300 && xhr.responseText) {
+              applyPayload(JSON.parse(xhr.responseText));
+            }
+          } catch (err) {}
+          done();
+        };
+
+        xhr.onerror = done;
+        xhr.onabort = done;
+
+        try {
+          xhr.open("GET", url, true);
+          xhr.setRequestHeader("Accept", "application/json");
+          xhr.setRequestHeader("Cache-Control", "no-cache");
+          xhr.setRequestHeader("Pragma", "no-cache");
+          xhr.send(null);
+        } catch (err) {
+          done();
+        }
+      }
+
       if (!boot.loaded) {
         try {
           var cached = localStorage.getItem(CACHE_KEY);
           if (cached) {
             var parsed = JSON.parse(cached);
-            if (parsed && Array.isArray(parsed.categories) && parsed.categories.length) {
+            if (parsed && isArray(parsed.categories) && parsed.categories.length) {
               state = parsed;
               paint();
             }
@@ -236,52 +320,10 @@ const boot = JSON.stringify({
         persist();
       }
 
-      async function poll() {
-        var controller = typeof AbortController === "function" ? new AbortController() : null;
-        var abortTimer = setTimeout(function () {
-          if (controller) controller.abort();
-        }, 8000);
-        try {
-          var options = {
-            cache: "no-store",
-            headers: {
-              Accept: "application/json",
-              "Cache-Control": "no-cache",
-              Pragma: "no-cache",
-            },
-          };
-          if (controller) options.signal = controller.signal;
-          var res = await fetch("/api/topics?t=" + Date.now(), options);
-          if (!res.ok) return;
-          var next = await res.json();
-          if (!next || !Array.isArray(next.categories)) return;
-          var prev = JSON.stringify(state.categories);
-          var incoming = JSON.stringify(next.categories);
-          state = next;
-          persist();
-          if (prev !== incoming) paint();
-          syncAnkiDeck();
-        } catch (err) {
-        } finally {
-          clearTimeout(abortTimer);
-        }
-      }
-
-      function loop() {
-        poll().then(
-          function () {
-            setTimeout(loop, POLL_MS);
-          },
-          function () {
-            setTimeout(loop, POLL_MS);
-          },
-        );
-      }
-
       function keepAwake() {
         try {
           if (navigator.wakeLock && navigator.wakeLock.request) {
-            navigator.wakeLock.request("screen").catch(function () {});
+            navigator.wakeLock.request("screen");
           }
         } catch (err) {}
       }
@@ -289,7 +331,7 @@ const boot = JSON.stringify({
       keepAwake();
       syncAnkiDeck();
       setInterval(paintAnki, 250);
-      loop();
+      poll();
       document.addEventListener("visibilitychange", function () {
         if (document.visibilityState === "visible") {
           keepAwake();
