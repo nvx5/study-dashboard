@@ -258,50 +258,32 @@ const boot = JSON.stringify({
         if (!(n >= 1 && n <= 4)) n = 2;
         n = Math.round(n);
         boardEl.setAttribute("data-columns", String(n));
+        boardEl.style.display = "flex";
+        boardEl.style.webkitBoxAlign = "start";
+        boardEl.style.webkitAlignItems = "flex-start";
+        boardEl.style.alignItems = "flex-start";
+        boardEl.style.webkitFlexWrap = "wrap";
+        boardEl.style.flexWrap = "wrap";
+        boardEl.style.webkitAlignContent = "flex-start";
+        boardEl.style.alignContent = "flex-start";
         boardEl.style.columnCount = "auto";
         boardEl.style.webkitColumnCount = "auto";
-        var tracks = "";
-        var i;
-        for (i = 0; i < n; i++) {
-          tracks += (i ? " " : "") + "minmax(0, 1fr)";
-        }
-        boardEl.style.display = "grid";
-        boardEl.style.gridTemplateColumns = tracks;
-        boardEl.style.gap = "16px";
-        var usesGrid = false;
-        try {
-          var display = window.getComputedStyle(boardEl).display;
-          usesGrid = display === "grid" || display === "inline-grid";
-        } catch (err) {}
-        var cats = boardEl.children;
-        var floatW = "calc(" + (100 / n).toFixed(4) + "% - 16px)";
-        if (usesGrid) {
-          boardEl.style.overflow = "visible";
-          boardEl.style.marginLeft = "0";
-          boardEl.style.marginRight = "0";
-          for (i = 0; i < cats.length; i++) {
-            if (cats[i].nodeType !== 1) continue;
-            cats[i].style.cssFloat = "none";
-            cats[i].style.width = "auto";
-            cats[i].style.maxWidth = "none";
-            cats[i].style.minWidth = "0";
-            cats[i].style.marginLeft = "0";
-            cats[i].style.marginRight = "0";
-          }
-          return;
-        }
-        boardEl.style.display = "block";
-        boardEl.style.overflow = "hidden";
-        boardEl.style.marginLeft = "-8px";
-        boardEl.style.marginRight = "-8px";
         boardEl.style.gridTemplateColumns = "";
         boardEl.style.gap = "";
-        for (i = 0; i < cats.length; i++) {
+        var w = "calc(" + (100 / n).toFixed(4) + "% - 16px)";
+        var cats = boardEl.children;
+        for (var i = 0; i < cats.length; i++) {
           if (cats[i].nodeType !== 1) continue;
-          cats[i].style.cssFloat = "left";
-          cats[i].style.width = floatW;
-          cats[i].style.maxWidth = floatW;
+          cats[i].style.cssFloat = "none";
+          cats[i].style.webkitBoxFlex = "0";
+          cats[i].style.webkitFlex = "0 0 auto";
+          cats[i].style.flex = "0 0 auto";
+          cats[i].style.webkitAlignSelf = "flex-start";
+          cats[i].style.alignSelf = "flex-start";
+          cats[i].style.width = w;
+          cats[i].style.maxWidth = w;
           cats[i].style.minWidth = "0";
+          cats[i].style.height = "auto";
           cats[i].style.boxSizing = "border-box";
           cats[i].style.marginLeft = "8px";
           cats[i].style.marginRight = "8px";

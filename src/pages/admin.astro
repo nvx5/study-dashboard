@@ -323,7 +323,7 @@ const boot = JSON.stringify({
         if (ankiShowAnswerEl) ankiShowAnswerEl.disabled = disabled || !!(pos && pos.showBack);
         if (ankiNextStageEl) ankiNextStageEl.disabled = disabled;
         if (ankiNextCardEl) ankiNextCardEl.disabled = disabled;
-        if (ankiVisibleEl) ankiVisibleEl.disabled = disabled;
+        if (ankiVisibleEl) ankiVisibleEl.disabled = false;
         if (!pos) {
           if (ankiTimerStageEl) ankiTimerStageEl.textContent = "No cards";
           if (ankiTimerClockEl) ankiTimerClockEl.textContent = "—";
@@ -660,6 +660,7 @@ const boot = JSON.stringify({
       if (ankiVisibleEl) {
         ankiVisibleEl.addEventListener("click", function () {
           var hidden = ankiVisibleEl.getAttribute("aria-pressed") !== "false";
+          applyDisplay({ ankiHidden: hidden });
           save(false, false, { ankiHidden: hidden });
         });
       }
