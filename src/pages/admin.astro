@@ -8,7 +8,7 @@ import {
   ANKI_HEIGHT_MAX,
   ANKI_HEIGHT_MIN,
 } from "../lib/anki-cycle";
-import { TOPIC_COLUMNS_DEFAULT, TOPIC_COLUMNS_MAX, TOPIC_COLUMNS_MIN } from "../lib/display";
+import { TOPIC_COLUMNS_DEFAULT } from "../lib/display";
 import { CURRICULUM_FILENAME, CURRICULUM_TEXT, lineCount } from "../lib/curriculum";
 import { DEFAULT_TITLE } from "../lib/defaults";
 import { categoryProgress } from "../lib/progress";
@@ -113,6 +113,15 @@ const boot = JSON.stringify({
       </div>
       <div class="display-panel">
         <div class="display-row">
+          <span class="display-label">Columns</span>
+          <div class="display-columns" id="topic-columns" role="group" aria-label="Topic columns">
+            <button type="button" class="btn" data-columns="1" aria-pressed={state.topicColumns === 1}>1</button>
+            <button type="button" class="btn" data-columns="2" aria-pressed={state.topicColumns === 2}>2</button>
+            <button type="button" class="btn" data-columns="3" aria-pressed={state.topicColumns === 3}>3</button>
+            <button type="button" class="btn" data-columns="4" aria-pressed={state.topicColumns === 4}>4</button>
+          </div>
+        </div>
+        <div class="display-row">
           <span class="display-label">Anki card</span>
           <button type="button" class="btn" id="anki-visible" aria-pressed={!state.ankiHidden}>
             {state.ankiHidden ? "Hidden" : "Shown"}
@@ -129,26 +138,6 @@ const boot = JSON.stringify({
             aria-label="Anki card height"
           />
           <span id="anki-height-val" class="display-height-val">{state.ankiHeightVh}vh</span>
-        </div>
-        <div class="display-row">
-          <span class="display-label">Columns</span>
-          <div class="segment" id="topic-columns" role="group" aria-label="Topic columns">
-            {
-              Array.from({ length: TOPIC_COLUMNS_MAX - TOPIC_COLUMNS_MIN + 1 }, (_, i) => {
-                const n = TOPIC_COLUMNS_MIN + i;
-                return (
-                  <button
-                    type="button"
-                    class="seg"
-                    data-columns={n}
-                    aria-pressed={state.topicColumns === n}
-                  >
-                    {n}
-                  </button>
-                );
-              })
-            }
-          </div>
         </div>
         <div class="display-timer" id="anki-timer">
           <div class="display-timer-stage" id="anki-timer-stage">No cards</div>
@@ -693,7 +682,9 @@ const boot = JSON.stringify({
         topicColumnsEl.addEventListener("click", function (event) {
           var button = event.target.closest("button[data-columns]");
           if (!button) return;
-          save(false, false, { topicColumns: Number(button.getAttribute("data-columns")) });
+          var n = Number(button.getAttribute("data-columns"));
+          applyDisplay({ topicColumns: n });
+          save(false, false, { topicColumns: n });
         });
       }
 

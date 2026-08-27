@@ -35,10 +35,78 @@ body.display .stage::-webkit-scrollbar {
 }
 
 body.display .board {
-  -webkit-column-count: 2;
-  -webkit-column-gap: 16px;
-  column-count: 2;
-  column-gap: 16px;
+  display: block;
+  overflow: hidden;
+  margin: 0 -8px;
+}
+
+body.display .cat {
+  float: left;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+  width: calc(50% - 16px);
+  max-width: calc(50% - 16px);
+  min-width: 0;
+  margin: 0 8px 16px;
+  background: var(--row);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+body.display .board[data-columns="1"] .cat {
+  width: calc(100% - 16px);
+  max-width: calc(100% - 16px);
+}
+
+body.display .board[data-columns="2"] .cat {
+  width: calc(50% - 16px);
+  max-width: calc(50% - 16px);
+}
+
+body.display .board[data-columns="3"] .cat {
+  width: calc(33.3333% - 16px);
+  max-width: calc(33.3333% - 16px);
+}
+
+body.display .board[data-columns="4"] .cat {
+  width: calc(25% - 16px);
+  max-width: calc(25% - 16px);
+}
+
+@supports (display: grid) {
+  body.display .board {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-column-gap: 16px;
+    grid-row-gap: 16px;
+    gap: 16px;
+    margin: 0;
+    overflow: visible;
+  }
+
+  body.display .board[data-columns="1"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body.display .board[data-columns="2"] {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  body.display .board[data-columns="3"] {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  body.display .board[data-columns="4"] {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  body.display .cat {
+    float: none;
+    width: auto;
+    max-width: none;
+    margin: 0;
+  }
 }
 
 body.display .anki {
@@ -115,16 +183,6 @@ body.display .empty {
   margin: 4rem auto 0;
   text-align: center;
   color: var(--muted);
-}
-
-body.display .cat {
-  break-inside: avoid;
-  page-break-inside: avoid;
-  background: var(--row);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  margin: 0 0 16px;
-  overflow: hidden;
 }
 
 body.display .cat h2 {
