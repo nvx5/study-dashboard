@@ -1,0 +1,30 @@
+---
+interface Props {
+  title: string;
+  page: "display" | "admin";
+}
+
+const { title, page } = Astro.props;
+const isDisplay = page === "display";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content={isDisplay
+        ? "width=device-width, initial-scale=1, viewport-fit=cover"
+        : "width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"}
+    />
+    <meta name="color-scheme" content="light" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="description" content={isDisplay ? "Study topic confidence display" : "Study topic controls"} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>{title}</title>
+  </head>
+  <body class={page}>
+    <slot />
+  </body>
+</html>

@@ -1,0 +1,659 @@
+---
+import Layout from "../layouts/Layout.astro";
+import "../styles/global.css";
+import { DEFAULT_TITLE } from "../lib/defaults";
+import { getState } from "../lib/store";
+import { MAX_NAME_LENGTH, MAX_TITLE_LENGTH, MAX_TOPICS, type AppState } from "../lib/types";
+
+let loaded = true;
+let state: AppState;
+
+try {
+  state = await getState();
+} catch {
+  loaded = false;
+  state = { title: DEFAULT_TITLE, topics: [], updatedAt: 0 };
+}
+
+const boot = JSON.stringify({
+  loaded,
+  state,
+  maxName: MAX_NAME_LENGTH,
+  maxTitle: MAX_TITLE_LENGTH,
+  maxTopics: MAX_TOPICS,
+}).replace(/</g, "\\u003c");
+---
+
+<Layout title="Admin · Study topics" page="admin">
+  <div class="wrap">
+    <header class="top">
+      <div>
+        <p class="eyebrow">Phone controls</p>
+        <h1>Topics</h1>
+      </div>
+      <p id="save-status" class="save-status" aria-live="polite"></p>
+    </header>
+
+    <p id="load-error" class="banner" hidden={loaded} role="status">
+      Couldn’t load saved topics. You can still edit, then save when the connection returns.
+    </p>
+
+    <section class="block" aria-labelledby="title-label">
+      <label id="title-label" for="display-title">Display title</label>
+      <input
+        id="display-title"
+        name="title"
+        maxlength={MAX_TITLE_LENGTH}
+        value={state.title}
+        autocomplete="off"
+      />
+    </section>
+
+    <section class="block add" aria-labelledby="add-label">
+      <label id="add-label" for="new-topic">Add a topic</label>
+      <form id="add-form" class="add-row">
+        <input
+          id="new-topic"
+          name="name"
+          maxlength={MAX_NAME_LENGTH}
+          placeholder="Topic name"
+          autocomplete="off"
+          enterkeyhint="done"
+        />
+        <button type="submit">Add</button>
+      </form>
+    </section>
+
+    <ul id="list" class="list">
+      {
+        state.topics.map((topic, index) => (
+          <li class="card" data-id={topic.id} data-confidence={topic.confidence}>
+            <div class="card-head">
+              <label class="visually-hidden" for={`name-${topic.id}`}>
+                Topic name
+              </label>
+              <input
+                id={`name-${topic.id}`}
+                class="name"
+                value={topic.name}
+                maxlength={MAX_NAME_LENGTH}
+                autocomplete="off"
+              />
+              <button type="button" class="text-btn danger" data-action="delete">
+                Delete
+              </button>
+            </div>
+            <div class="segment" role="group" aria-label={`Confidence for ${topic.name}`}>
+              <button
+                type="button"
+                class="seg red"
+                data-action="confidence"
+                data-value="red"
+                aria-pressed={topic.confidence === "red"}
+              >
+                Red
+              </button>
+              <button
+                type="button"
+                class="seg yellow"
+                data-action="confidence"
+                data-value="yellow"
+                aria-pressed={topic.confidence === "yellow"}
+              >
+                Yellow
+              </button>
+              <button
+                type="button"
+                class="seg green"
+                data-action="confidence"
+                data-value="green"
+                aria-pressed={topic.confidence === "green"}
+              >
+                Green
+              </button>
+            </div>
+            <div class="reorder">
+              <button type="button" class="text-btn" data-action="up" disabled={index === 0}>
+                Move up
+              </button>
+              <button
+                type="button"
+                class="text-btn"
+                data-action="down"
+                disabled={index === state.topics.length - 1}
+              >
+                Move down
+              </button>
+            </div>
+          </li>
+        ))
+      }
+    </ul>
+
+    <p id="empty" class="empty" hidden={state.topics.length > 0}>No topics yet. Add one above.</p>
+
+    <p class="foot">
+      <a href="/">Open display</a>
+    </p>
+  </div>
+
+  <template id="card-template">
+    <li class="card" data-id="" data-confidence="red">
+      <div class="card-head">
+        <label class="visually-hidden">Topic name</label>
+        <input class="name" maxlength={MAX_NAME_LENGTH} autocomplete="off" />
+        <button type="button" class="text-btn danger" data-action="delete">Delete</button>
+      </div>
+      <div class="segment" role="group" aria-label="Confidence">
+        <button type="button" class="seg red" data-action="confidence" data-value="red">Red</button>
+        <button type="button" class="seg yellow" data-action="confidence" data-value="yellow">Yellow</button>
+        <button type="button" class="seg green" data-action="confidence" data-value="green">Green</button>
+      </div>
+      <div class="reorder">
+        <button type="button" class="text-btn" data-action="up">Move up</button>
+        <button type="button" class="text-btn" data-action="down">Move down</button>
+      </div>
+    </li>
+  </template>
+
+  <script id="boot" type="application/json" is:inline set:html={boot} />
+
+  <script is:inline>
+    (function () {
+      var bootEl = document.getElementById("boot");
+      var listEl = document.getElementById("list");
+      var emptyEl = document.getElementById("empty");
+      var titleEl = document.getElementById("display-title");
+      var addForm = document.getElementById("add-form");
+      var newTopicEl = document.getElementById("new-topic");
+      var statusEl = document.getElementById("save-status");
+      var loadErrorEl = document.getElementById("load-error");
+      var template = document.getElementById("card-template");
+      if (!bootEl || !listEl || !emptyEl || !titleEl || !addForm || !newTopicEl || !statusEl || !template) return;
+
+      var boot = JSON.parse(bootEl.textContent || "{}");
+      var state = boot.state || { title: "Study topics", topics: [], updatedAt: 0 };
+      var maxName = boot.maxName || 200;
+      var maxTitle = boot.maxTitle || 80;
+      var maxTopics = boot.maxTopics || 200;
+      var inFlight = false;
+      var queued = false;
+      var clearTimer = 0;
+      var pendingDeleteId = null;
+      var deleteTimer = 0;
+
+      function setStatus(text, kind) {
+        statusEl.textContent = text;
+        statusEl.dataset.kind = kind || "";
+        window.clearTimeout(clearTimer);
+        if (kind === "ok") {
+          clearTimer = window.setTimeout(function () {
+            if (statusEl.dataset.kind === "ok") {
+              statusEl.textContent = "";
+              statusEl.dataset.kind = "";
+            }
+          }, 1600);
+        }
+      }
+
+      function findTopic(id) {
+        for (var i = 0; i < state.topics.length; i++) {
+          if (state.topics[i].id === id) return state.topics[i];
+        }
+        return null;
+      }
+
+      function syncPressed(card, confidence) {
+        var buttons = card.querySelectorAll("[data-action='confidence']");
+        for (var i = 0; i < buttons.length; i++) {
+          buttons[i].setAttribute("aria-pressed", buttons[i].getAttribute("data-value") === confidence ? "true" : "false");
+        }
+        card.setAttribute("data-confidence", confidence);
+        var nameInput = card.querySelector(".name");
+        var group = card.querySelector(".segment");
+        if (nameInput && group) {
+          group.setAttribute("aria-label", "Confidence for " + nameInput.value);
+        }
+      }
+
+      function renderList() {
+        var activeCard = document.activeElement && document.activeElement.closest
+          ? document.activeElement.closest(".card")
+          : null;
+        var restoreId = activeCard && document.activeElement.classList.contains("name")
+          ? activeCard.getAttribute("data-id")
+          : null;
+
+        listEl.replaceChildren();
+        for (var i = 0; i < state.topics.length; i++) {
+          var topic = state.topics[i];
+          var node = template.content.firstElementChild.cloneNode(true);
+          node.setAttribute("data-id", topic.id);
+          var label = node.querySelector("label");
+          var input = node.querySelector(".name");
+          input.id = "name-" + topic.id;
+          input.value = topic.name;
+          input.maxLength = maxName;
+          label.setAttribute("for", input.id);
+          label.textContent = "Topic name";
+          syncPressed(node, topic.confidence);
+          node.querySelector("[data-action='up']").disabled = i === 0;
+          node.querySelector("[data-action='down']").disabled = i === state.topics.length - 1;
+          if (pendingDeleteId === topic.id) {
+            var del = node.querySelector("[data-action='delete']");
+            del.textContent = "Confirm delete";
+            del.dataset.confirm = "true";
+          }
+          listEl.append(node);
+        }
+
+        emptyEl.hidden = state.topics.length > 0;
+
+        if (restoreId) {
+          var next = listEl.querySelector('.card[data-id="' + restoreId + '"] .name');
+          if (next) next.focus();
+        }
+      }
+
+      async function save() {
+        if (inFlight) {
+          queued = true;
+          return;
+        }
+        inFlight = true;
+        setStatus("Saving…", "pending");
+        try {
+          do {
+            queued = false;
+            var res = await fetch("/api/topics", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify({ title: state.title, topics: state.topics }),
+            });
+            var data = await res.json().catch(function () {
+              return {};
+            });
+            if (!res.ok) throw new Error(data.error || "Save failed");
+            state.updatedAt = data.updatedAt || Date.now();
+            if (loadErrorEl) loadErrorEl.hidden = true;
+          } while (queued);
+          setStatus("Saved", "ok");
+        } catch (err) {
+          setStatus("Couldn’t save. Tap to retry.", "error");
+        } finally {
+          inFlight = false;
+        }
+      }
+
+      statusEl.addEventListener("click", function () {
+        if (statusEl.dataset.kind === "error") save();
+      });
+
+      titleEl.addEventListener("change", function () {
+        var next = titleEl.value.trim();
+        if (!next) {
+          titleEl.value = state.title;
+          return;
+        }
+        state.title = next.slice(0, maxTitle);
+        titleEl.value = state.title;
+        save();
+      });
+
+      addForm.addEventListener("submit", function (event) {
+        event.preventDefault();
+        var name = newTopicEl.value.trim();
+        if (!name) {
+          newTopicEl.focus();
+          return;
+        }
+        if (state.topics.length >= maxTopics) {
+          setStatus("Topic limit reached.", "error");
+          return;
+        }
+        var id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
+        state.topics.push({
+          id: id,
+          name: name.slice(0, maxName),
+          confidence: "red",
+          order: state.topics.length,
+        });
+        newTopicEl.value = "";
+        renderList();
+        save();
+        newTopicEl.focus();
+      });
+
+      listEl.addEventListener("click", function (event) {
+        var button = event.target.closest("button");
+        if (!button) return;
+        var card = button.closest(".card");
+        if (!card) return;
+        var id = card.getAttribute("data-id");
+        var topic = findTopic(id);
+        if (!topic) return;
+        var action = button.getAttribute("data-action");
+        var index = state.topics.indexOf(topic);
+
+        if (action === "confidence") {
+          topic.confidence = button.getAttribute("data-value");
+          pendingDeleteId = null;
+          syncPressed(card, topic.confidence);
+          save();
+          return;
+        }
+
+        if (action === "delete") {
+          if (pendingDeleteId !== id) {
+            var previous = listEl.querySelector("[data-action='delete'][data-confirm='true']");
+            if (previous) {
+              previous.textContent = "Delete";
+              delete previous.dataset.confirm;
+            }
+            pendingDeleteId = id;
+            button.textContent = "Confirm delete";
+            button.dataset.confirm = "true";
+            window.clearTimeout(deleteTimer);
+            deleteTimer = window.setTimeout(function () {
+              if (pendingDeleteId === id) {
+                button.textContent = "Delete";
+                delete button.dataset.confirm;
+                pendingDeleteId = null;
+              }
+            }, 4000);
+            return;
+          }
+          pendingDeleteId = null;
+          state.topics.splice(index, 1);
+          renderList();
+          save();
+          return;
+        }
+
+        if (action === "up" && index > 0) {
+          var prev = state.topics[index - 1];
+          state.topics[index - 1] = topic;
+          state.topics[index] = prev;
+          pendingDeleteId = null;
+          renderList();
+          save();
+          return;
+        }
+
+        if (action === "down" && index < state.topics.length - 1) {
+          var next = state.topics[index + 1];
+          state.topics[index + 1] = topic;
+          state.topics[index] = next;
+          pendingDeleteId = null;
+          renderList();
+          save();
+        }
+      });
+
+      listEl.addEventListener("change", function (event) {
+        var input = event.target;
+        if (!input.classList.contains("name")) return;
+        var card = input.closest(".card");
+        var topic = findTopic(card.getAttribute("data-id"));
+        if (!topic) return;
+        var name = input.value.trim();
+        if (!name) {
+          input.value = topic.name;
+          return;
+        }
+        topic.name = name.slice(0, maxName);
+        input.value = topic.name;
+        save();
+      });
+
+      listEl.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter") return;
+        var input = event.target;
+        if (!input.classList.contains("name")) return;
+        event.preventDefault();
+        input.blur();
+      });
+    })();
+  </script>
+</Layout>
+
+<style is:global>
+  body.admin {
+    background: var(--bg);
+    touch-action: manipulation;
+  }
+
+  body.admin .wrap {
+    width: min(40rem, 100%);
+    margin: 0 auto;
+    padding:
+      max(1rem, env(safe-area-inset-top))
+      max(1rem, env(safe-area-inset-right))
+      max(1.5rem, env(safe-area-inset-bottom))
+      max(1rem, env(safe-area-inset-left));
+  }
+
+  body.admin .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 1.1rem;
+  }
+
+  body.admin .eyebrow {
+    margin: 0 0 0.15rem;
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  body.admin h1 {
+    margin: 0;
+    font-size: 1.7rem;
+    letter-spacing: -0.03em;
+  }
+
+  body.admin .save-status {
+    margin: 0;
+    min-height: 1.25rem;
+    font-size: 0.92rem;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  body.admin .save-status[data-kind="pending"] {
+    color: var(--muted);
+  }
+
+  body.admin .save-status[data-kind="ok"] {
+    color: var(--green);
+  }
+
+  body.admin .save-status[data-kind="error"] {
+    color: var(--error);
+    cursor: pointer;
+    font-weight: 650;
+  }
+
+  body.admin .banner {
+    margin: 0 0 1rem;
+    padding: 0.75rem 0.85rem;
+    background: var(--yellow-bg);
+    border: 1px solid var(--yellow);
+    border-radius: 0.65rem;
+    color: var(--text);
+  }
+
+  body.admin .block {
+    margin-bottom: 1rem;
+  }
+
+  body.admin label,
+  body.admin #title-label,
+  body.admin #add-label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.85rem;
+    font-weight: 650;
+    color: var(--muted);
+  }
+
+  body.admin input {
+    width: 100%;
+    min-height: 2.9rem;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 0.6rem;
+    background: #fff;
+  }
+
+  body.admin .add-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem;
+  }
+
+  body.admin .add-row button {
+    min-width: 5.2rem;
+    min-height: 2.9rem;
+    padding: 0 1rem;
+    border: 0;
+    border-radius: 0.6rem;
+    background: var(--text);
+    color: #fff;
+    font-weight: 650;
+  }
+
+  body.admin .list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  body.admin .card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 0.85rem;
+    padding: 0.85rem;
+    border-left: 0.65rem solid var(--line);
+  }
+
+  body.admin .card[data-confidence="red"] {
+    border-left-color: var(--red);
+    background: var(--red-bg);
+  }
+
+  body.admin .card[data-confidence="yellow"] {
+    border-left-color: var(--yellow);
+    background: var(--yellow-bg);
+  }
+
+  body.admin .card[data-confidence="green"] {
+    border-left-color: var(--green);
+    background: var(--green-bg);
+  }
+
+  body.admin .card-head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.65rem;
+  }
+
+  body.admin .name {
+    font-size: 1.05rem;
+    font-weight: 650;
+  }
+
+  body.admin .segment {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.4rem;
+  }
+
+  body.admin .seg {
+    min-height: 3rem;
+    border-radius: 0.55rem;
+    border: 1px solid var(--line);
+    background: #fff;
+    font-weight: 700;
+    touch-action: manipulation;
+  }
+
+  body.admin .seg.red {
+    color: var(--red);
+    border-color: var(--red);
+  }
+
+  body.admin .seg.yellow {
+    color: var(--yellow);
+    border-color: var(--yellow);
+  }
+
+  body.admin .seg.green {
+    color: var(--green);
+    border-color: var(--green);
+  }
+
+  body.admin .seg[aria-pressed="true"].red {
+    background: var(--red);
+    color: #fff;
+  }
+
+  body.admin .seg[aria-pressed="true"].yellow {
+    background: var(--yellow-fill);
+    color: #1c1a10;
+    border-color: var(--yellow);
+  }
+
+  body.admin .seg[aria-pressed="true"].green {
+    background: var(--green);
+    color: #fff;
+  }
+
+  body.admin .reorder {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    margin-top: 0.6rem;
+  }
+
+  body.admin .text-btn {
+    min-height: 2.5rem;
+    padding: 0 0.7rem;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 650;
+  }
+
+  body.admin .text-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+
+  body.admin .text-btn.danger {
+    color: var(--red);
+  }
+
+  body.admin .empty {
+    color: var(--muted);
+    margin: 0.5rem 0 0;
+  }
+
+  body.admin .foot {
+    margin: 1.5rem 0 0;
+    color: var(--muted);
+    font-size: 0.92rem;
+  }
+
+  body.admin .foot a {
+    color: var(--text);
+  }
+</style>

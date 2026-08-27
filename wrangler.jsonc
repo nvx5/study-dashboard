@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "study-dashboard",
+  "compatibility_date": "2026-08-27",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "study-dashboard",
+      // Replace with the ID printed by: npx wrangler d1 create study-dashboard
+      "database_id": "local-dev-placeholder"
+    }
+  ]
+}

@@ -1,0 +1,276 @@
+---
+import Layout from "../layouts/Layout.astro";
+import "../styles/global.css";
+import { DEFAULT_TITLE } from "../lib/defaults";
+import { getState } from "../lib/store";
+import { STATUS_LABEL, type AppState } from "../lib/types";
+
+let loaded = true;
+let state: AppState;
+
+try {
+  state = await getState();
+} catch {
+  loaded = false;
+  state = { title: DEFAULT_TITLE, topics: [], updatedAt: 0 };
+}
+
+const boot = JSON.stringify({ loaded, state }).replace(/</g, "\\u003c");
+const pageTitle = state.title || DEFAULT_TITLE;
+---
+
+<Layout title={pageTitle} page="display">
+  <div class="frame">
+    <header class="header">
+      <h1 id="title">{pageTitle}</h1>
+    </header>
+
+    <p id="empty" class="empty" hidden={state.topics.length > 0 || !loaded}>
+      No topics yet
+    </p>
+    <p id="waiting" class="empty" hidden={loaded}>
+      Waiting for topics…
+    </p>
+
+    <ul id="topics" class="topics">
+      {
+        state.topics.map((topic) => (
+          <li class="topic" data-confidence={topic.confidence}>
+            <h2>{topic.name}</h2>
+            <p class="status">{STATUS_LABEL[topic.confidence]}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+
+  <script id="boot" type="application/json" is:inline set:html={boot} />
+
+  <script is:inline>
+    (function () {
+      var POLL_MS = 4000;
+      var CACHE_KEY = "study-dashboard-cache";
+      var labels = {
+        red: "Needs study",
+        yellow: "Improving",
+        green: "Confident",
+      };
+
+      var titleEl = document.getElementById("title");
+      var listEl = document.getElementById("topics");
+      var emptyEl = document.getElementById("empty");
+      var waitingEl = document.getElementById("waiting");
+      var bootEl = document.getElementById("boot");
+      if (!titleEl || !listEl || !emptyEl || !waitingEl || !bootEl) return;
+
+      var boot = JSON.parse(bootEl.textContent || "{}");
+      var state = boot.state || { title: "Study topics", topics: [], updatedAt: 0 };
+      var etag = null;
+
+      function persist() {
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(state));
+        } catch (err) {}
+      }
+
+      function paint() {
+        titleEl.textContent = state.title || "Study topics";
+        document.title = state.title || "Study topics";
+
+        waitingEl.hidden = true;
+
+        if (!state.topics.length) {
+          listEl.replaceChildren();
+          emptyEl.hidden = false;
+          return;
+        }
+
+        emptyEl.hidden = true;
+        var frag = document.createDocumentFragment();
+        for (var i = 0; i < state.topics.length; i++) {
+          var topic = state.topics[i];
+          var li = document.createElement("li");
+          li.className = "topic";
+          li.setAttribute("data-confidence", topic.confidence);
+          var name = document.createElement("h2");
+          name.textContent = topic.name;
+          var status = document.createElement("p");
+          status.className = "status";
+          status.textContent = labels[topic.confidence] || topic.confidence;
+          li.append(name, status);
+          frag.append(li);
+        }
+        listEl.replaceChildren(frag);
+      }
+
+      if (!boot.loaded) {
+        try {
+          var cached = localStorage.getItem(CACHE_KEY);
+          if (cached) {
+            var parsed = JSON.parse(cached);
+            if (parsed && Array.isArray(parsed.topics) && parsed.topics.length) {
+              state = parsed;
+              paint();
+            }
+          }
+        } catch (err) {}
+      } else {
+        persist();
+      }
+
+      async function poll() {
+        try {
+          var headers = { Accept: "application/json" };
+          if (etag) headers["If-None-Match"] = etag;
+          var res = await fetch("/api/topics", { headers: headers, cache: "no-store" });
+          if (res.status === 304) return;
+          if (!res.ok) return;
+          var next = await res.json();
+          etag = res.headers.get("ETag");
+          var prev = JSON.stringify({ title: state.title, topics: state.topics });
+          var incoming = JSON.stringify({ title: next.title, topics: next.topics });
+          state = next;
+          persist();
+          if (prev !== incoming) paint();
+        } catch (err) {}
+      }
+
+      setInterval(poll, POLL_MS);
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "visible") poll();
+      });
+    })();
+  </script>
+</Layout>
+
+<style is:global>
+  body.display {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body.display {
+    cursor: none;
+    user-select: none;
+    -webkit-user-select: none;
+    background: var(--bg);
+    overscroll-behavior: none;
+  }
+
+  body.display .frame {
+    height: 100%;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding:
+      max(0.7rem, env(safe-area-inset-top))
+      max(0.9rem, env(safe-area-inset-right))
+      max(0.7rem, env(safe-area-inset-bottom))
+      max(0.9rem, env(safe-area-inset-left));
+    gap: clamp(0.45rem, 1.4vh, 1rem);
+  }
+
+  body.display .header {
+    flex: 0 0 auto;
+  }
+
+  body.display h1 {
+    margin: 0;
+    font-size: clamp(1rem, 1.6vw + 0.7rem, 1.85rem);
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  body.display .empty {
+    margin: auto;
+    font-size: clamp(1.1rem, 2vw + 0.6rem, 2rem);
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  body.display .topics {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+    grid-auto-rows: minmax(4.75rem, 1fr);
+    gap: clamp(0.4rem, 1.1vmin, 0.9rem);
+    overflow: auto;
+    align-content: stretch;
+  }
+
+  body.display .topic {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.2rem;
+    min-width: 0;
+    min-height: 4.75rem;
+    padding: clamp(0.65rem, 1.4vmin, 1.15rem) clamp(0.8rem, 1.8vmin, 1.35rem);
+    border-radius: 0.7rem;
+    border: 1px solid var(--line);
+    border-left-width: 0.7rem;
+    background: var(--surface);
+  }
+
+  body.display .topic h2 {
+    margin: 0;
+    font-size: clamp(1.05rem, 1.5vw + 0.55rem, 2.15rem);
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  body.display .topic .status {
+    margin: 0;
+    font-size: clamp(0.8rem, 0.7vw + 0.62rem, 1.15rem);
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  body.display .topic[data-confidence="red"] {
+    background: var(--red-bg);
+    border-color: var(--red);
+    color: var(--text);
+  }
+
+  body.display .topic[data-confidence="red"] .status {
+    color: var(--red);
+  }
+
+  body.display .topic[data-confidence="yellow"] {
+    background: var(--yellow-bg);
+    border-color: var(--yellow);
+  }
+
+  body.display .topic[data-confidence="yellow"] .status {
+    color: var(--yellow);
+  }
+
+  body.display .topic[data-confidence="green"] {
+    background: var(--green-bg);
+    border-color: var(--green);
+  }
+
+  body.display .topic[data-confidence="green"] .status {
+    color: var(--green);
+  }
+
+  @media (max-width: 700px), (orientation: portrait) {
+    body.display .topics {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (min-width: 1600px) and (min-aspect-ratio: 16/10) {
+    body.display .topics {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
+    }
+  }
+</style>

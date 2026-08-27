@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Study dashboard">
+  <rect width="32" height="32" rx="6" fill="#1b6b43"/>
+  <rect x="4" y="7" width="24" height="5" rx="1.5" fill="#dcefe4"/>
+  <rect x="4" y="14" width="24" height="5" rx="1.5" fill="#f4ecd0"/>
+  <rect x="4" y="21" width="24" height="5" rx="1.5" fill="#f6e2df"/>
+</svg>
