@@ -12,6 +12,12 @@ export const DEFAULT_TAG_NAMES: Record<Confidence, string> = {
 };
 
 export const DEFAULT_TAG_COLORS: Record<Confidence, string> = {
+  red: "#f85149",
+  yellow: "#e3b341",
+  green: "#3fb950",
+};
+
+const LEGACY_TAG_COLORS: Record<Confidence, string> = {
   red: "#6e2020",
   yellow: "#5c3d00",
   green: "#12261e",
@@ -66,10 +72,16 @@ export function normalizeTagNames(value: unknown): Record<Confidence, string> {
 export function normalizeTagColors(value: unknown): Record<Confidence, string> {
   const rec = isRecord(value) ? value : {};
   return {
-    red: parseHexColor(rec.red) ?? DEFAULT_TAG_COLORS.red,
-    yellow: parseHexColor(rec.yellow) ?? DEFAULT_TAG_COLORS.yellow,
-    green: parseHexColor(rec.green) ?? DEFAULT_TAG_COLORS.green,
+    red: colorOrDefault(rec.red, "red"),
+    yellow: colorOrDefault(rec.yellow, "yellow"),
+    green: colorOrDefault(rec.green, "green"),
   };
+}
+
+function colorOrDefault(value: unknown, key: Confidence): string {
+  const parsed = parseHexColor(value);
+  if (!parsed || parsed === LEGACY_TAG_COLORS[key]) return DEFAULT_TAG_COLORS[key];
+  return parsed;
 }
 
 export function tagSwatch(hex: string): { bg: string; text: string; border: string } {

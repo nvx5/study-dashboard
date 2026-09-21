@@ -10,6 +10,7 @@ export type Topic = {
   id: string;
   name: string;
   confidence: Confidence;
+  jasmine: Confidence;
   order: number;
 };
 
@@ -35,6 +36,7 @@ export type AppState = {
   topicColumns: number;
   tagNames: Record<Confidence, string>;
   tagColors: Record<Confidence, string>;
+  personNames: Record<"nil" | "jasmine", string>;
   updatedAt: number;
 };
 

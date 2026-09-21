@@ -8,11 +8,11 @@ import {
   splitIntoColumns,
   tagCssVars,
   TOPIC_COLUMNS_DEFAULT,
-  normalizeTagNames,
 } from "../lib/display";
 import { DEFAULT_TITLE } from "../lib/defaults";
 import { getState } from "../lib/store";
-import { categoryProgress } from "../lib/progress";
+import { personDisplayName, topicConfidence } from "../lib/people";
+import { categoryPairProgress } from "../lib/progress";
 import { DATA_VERSION, type AppState } from "../lib/types";
 
 let loaded = true;
@@ -35,6 +35,7 @@ try {
     topicColumns: TOPIC_COLUMNS_DEFAULT,
     tagNames: { ...DEFAULT_TAG_NAMES },
     tagColors: { ...DEFAULT_TAG_COLORS },
+    personNames: { nil: "N", jasmine: "J" },
     categories: [],
     updatedAt: 0,
   };
@@ -65,15 +66,22 @@ const boot = JSON.stringify({
                 <article class="cat" data-collapsed={category.collapsed ? "true" : "false"}>
                   <h2>
                     <span class="cat-title">{category.name}</span>
-                    <span class="cat-progress">{categoryProgress(category).label}</span>
+                    <span class="cat-progress">{categoryPairProgress(category).label}</span>
                   </h2>
                   {category.collapsed ? null : (
                     <ul>
                       {category.topics.map((topic) => (
                         <li>
                           <span class="topic-name">{topic.name}</span>
-                          <span class="tag" data-confidence={topic.confidence}>
-                            {normalizeTagNames(state.tagNames)[topic.confidence]}
+                          <span class="people">
+                            <span class="person-tag" data-confidence={topicConfidence(topic, "nil")}>
+                              <span class="dot" />
+                              <span class="person-name">{personDisplayName(state.personNames, "nil")}</span>
+                            </span>
+                            <span class="person-tag" data-confidence={topicConfidence(topic, "jasmine")}>
+                              <span class="dot" />
+                              <span class="person-name">{personDisplayName(state.personNames, "jasmine")}</span>
+                            </span>
                           </span>
                         </li>
                       ))}
@@ -110,8 +118,7 @@ const boot = JSON.stringify({
     (function () {
       var POLL_MS = 2000;
       var CACHE_KEY = "study-dashboard-cache";
-      var DEFAULT_NAMES = { red: "Needs study", yellow: "Improving", green: "Confident" };
-      var DEFAULT_COLORS = { red: "#6e2020", yellow: "#5c3d00", green: "#12261e" };
+      var DEFAULT_COLORS = { red: "#f85149", yellow: "#e3b341", green: "#3fb950" };
 
       var boardEl = document.getElementById("board");
       var emptyEl = document.getElementById("empty");
@@ -192,10 +199,29 @@ const boot = JSON.stringify({
         return { bg: parsed, text: text, border: "#" + mix(r) + mix(g) + mix(b) };
       }
 
-      function tagLabel(conf) {
-        var names = state.tagNames || {};
-        if (names[conf]) return names[conf];
-        return DEFAULT_NAMES[conf] || conf;
+      function personName(id) {
+        var names = state.personNames || {};
+        if (names[id]) return names[id];
+        return id === "jasmine" ? "J" : "N";
+      }
+
+      function personTag(label, conf) {
+        var wrap = document.createElement("span");
+        wrap.className = "person-tag";
+        wrap.setAttribute("data-confidence", conf || "red");
+        var dot = document.createElement("span");
+        dot.className = "dot";
+        var nameEl = document.createElement("span");
+        nameEl.className = "person-name";
+        nameEl.textContent = label;
+        wrap.appendChild(dot);
+        wrap.appendChild(nameEl);
+        return wrap;
+      }
+
+      function topicMark(topic, person) {
+        if (person === "jasmine") return topic.jasmine || "red";
+        return topic.confidence || "red";
       }
 
       function applyTagTheme() {
@@ -235,12 +261,12 @@ const boot = JSON.stringify({
             var name = document.createElement("span");
             name.className = "topic-name";
             name.textContent = topic.name;
-            var tag = document.createElement("span");
-            tag.className = "tag";
-            tag.setAttribute("data-confidence", topic.confidence);
-            tag.textContent = tagLabel(topic.confidence);
+            var people = document.createElement("span");
+            people.className = "people";
+            people.appendChild(personTag(personName("nil"), topicMark(topic, "nil")));
+            people.appendChild(personTag(personName("jasmine"), topicMark(topic, "jasmine")));
             li.appendChild(name);
-            li.appendChild(tag);
+            li.appendChild(people);
             list.appendChild(li);
           }
           article.appendChild(list);
@@ -323,12 +349,13 @@ const boot = JSON.stringify({
 
       function progressLabel(category) {
         var total = category.topics.length;
-        var done = 0;
+        var nilDone = 0;
+        var jasmineDone = 0;
         for (var i = 0; i < total; i++) {
-          if (category.topics[i].confidence === "green") done++;
+          if (topicMark(category.topics[i], "nil") === "green") nilDone++;
+          if (topicMark(category.topics[i], "jasmine") === "green") jasmineDone++;
         }
-        var pct = total === 0 ? 0 : Math.round((done * 100) / total);
-        return done + "/" + total + " (" + pct + "%)";
+        return nilDone + "/" + total + " · " + jasmineDone + "/" + total;
       }
 
       function applyColumns() {
@@ -377,7 +404,7 @@ const boot = JSON.stringify({
         if (!next || !isArray(next.categories)) return;
         var prev = JSON.stringify(state.categories);
         var prevCols = Number(state.topicColumns);
-        var prevNames = JSON.stringify(state.tagNames || {});
+        var prevNames = JSON.stringify(state.personNames || {});
         var incoming = JSON.stringify(next.categories);
         state = next;
         persist();
@@ -385,7 +412,7 @@ const boot = JSON.stringify({
         if (
           prev !== incoming ||
           prevCols !== Number(state.topicColumns) ||
-          prevNames !== JSON.stringify(state.tagNames || {})
+          prevNames !== JSON.stringify(state.personNames || {})
         ) {
           paint();
         } else applyColumns();

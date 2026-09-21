@@ -11,6 +11,7 @@ import {
 } from "./display";
 import { CURRICULUM_TEXT } from "./curriculum";
 import { createDefaultState, mergeCurriculum, stateFromSource } from "./defaults";
+import { applyPersonRatings, isPersonId, mergePersonNames, type PersonId } from "./people";
 import { DATA_VERSION, type AppState } from "./types";
 import { normalizeState } from "./validate";
 
@@ -79,6 +80,8 @@ export async function setState(
     topicColumns?: number;
     tagNames?: AppState["tagNames"];
     tagColors?: AppState["tagColors"];
+    personNames?: AppState["personNames"];
+    person?: PersonId;
   },
 ): Promise<AppState> {
   const db = getDb();
@@ -88,16 +91,21 @@ export async function setState(
   let state =
     typeof next.source === "string"
       ? stateFromSource(next.source, { ...current, categories: next.categories })
-      : {
-          ...current,
-          title: next.title,
-          theme: "dark" as const,
-          categories: next.categories.map((category, categoryIndex) => ({
-            ...category,
-            order: categoryIndex,
-            topics: category.topics.map((topic, topicIndex) => ({ ...topic, order: topicIndex })),
-          })),
-        };
+      : isPersonId(next.person)
+        ? {
+            ...current,
+            categories: applyPersonRatings(current.categories, next.categories, next.person),
+          }
+        : {
+            ...current,
+            title: next.title,
+            theme: "dark" as const,
+            categories: next.categories.map((category, categoryIndex) => ({
+              ...category,
+              order: categoryIndex,
+              topics: category.topics.map((topic, topicIndex) => ({ ...topic, order: topicIndex })),
+            })),
+          };
 
   if (typeof next.ankiSource === "string") {
     state = {
@@ -128,6 +136,9 @@ export async function setState(
   }
   if (next.tagColors) {
     state = { ...state, tagColors: normalizeTagColors(next.tagColors) };
+  }
+  if (next.personNames) {
+    state = { ...state, personNames: mergePersonNames(state.personNames, next.personNames) };
   }
   if (typeof next.ankiCycleAt === "number" && Number.isFinite(next.ankiCycleAt)) {
     state = { ...state, ankiCycleAt: next.ankiCycleAt };
@@ -166,6 +177,7 @@ function hydrate(saved: AppState | null): AppState {
     topicColumns: clampTopicColumns(saved.topicColumns ?? TOPIC_COLUMNS_DEFAULT),
     tagNames: normalizeTagNames(saved.tagNames ?? DEFAULT_TAG_NAMES),
     tagColors: normalizeTagColors(saved.tagColors ?? DEFAULT_TAG_COLORS),
+    personNames: mergePersonNames(undefined, saved.personNames),
   };
   if (withAnki.source) return withAnki;
   return {

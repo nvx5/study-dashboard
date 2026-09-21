@@ -237,7 +237,7 @@ body.admin .tag-name-input {
 }
 
 body.admin .tag-hex-input {
-  flex: 0 0 6.75rem;
+  flex: 1 1 auto;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   font-size: 12px;
 }

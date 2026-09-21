@@ -9,6 +9,7 @@ import {
   normalizeTagNames,
 } from "./display";
 import { DATA_VERSION, type AppState, type Category } from "./types";
+import { DEFAULT_PERSON_NAMES, normalizePersonNames } from "./people";
 
 export const DEFAULT_TITLE = "MSRA Master Clinical Curriculum";
 export const DEFAULT_THEME = "dark" as const;
@@ -27,6 +28,7 @@ export function categoriesFromParsed(parsed: CurriculumCategory[]): Category[] {
       id: `cat-${slug(categoryIndex)}-t${slug(topicIndex)}`,
       name,
       confidence: "red" as const,
+      jasmine: "red" as const,
       order: topicIndex,
     })),
   }));
@@ -47,6 +49,7 @@ export function createDefaultState(): AppState {
     topicColumns: TOPIC_COLUMNS_DEFAULT,
     tagNames: { ...DEFAULT_TAG_NAMES },
     tagColors: { ...DEFAULT_TAG_COLORS },
+    personNames: { ...DEFAULT_PERSON_NAMES },
     updatedAt: Date.now(),
   };
 }
@@ -71,6 +74,7 @@ export function stateFromSource(source: string, saved: AppState | null): AppStat
     topicColumns: clampTopicColumns(saved?.topicColumns),
     tagNames: normalizeTagNames(saved?.tagNames),
     tagColors: normalizeTagColors(saved?.tagColors),
+    personNames: normalizePersonNames(saved?.personNames),
     updatedAt: saved?.updatedAt ?? Date.now(),
   };
 
@@ -82,7 +86,10 @@ export function stateFromSource(source: string, saved: AppState | null): AppStat
 
 export function mergeCurriculum(saved: AppState | null, blueprint: AppState): AppState {
   const previous = new Map<string, Category>();
-  const previousTopics = new Map<string, { confidence: Category["topics"][number]["confidence"]; id: string }>();
+  const previousTopics = new Map<
+    string,
+    { confidence: Category["topics"][number]["confidence"]; jasmine: Category["topics"][number]["jasmine"]; id: string }
+  >();
 
   if (saved) {
     for (const category of saved.categories) {
@@ -91,6 +98,7 @@ export function mergeCurriculum(saved: AppState | null, blueprint: AppState): Ap
         previousTopics.set(`${category.name}\0${topic.name}`, {
           id: topic.id,
           confidence: topic.confidence,
+          jasmine: topic.jasmine ?? "red",
         });
       }
     }
@@ -109,6 +117,7 @@ export function mergeCurriculum(saved: AppState | null, blueprint: AppState): Ap
     topicColumns: clampTopicColumns(saved?.topicColumns ?? blueprint.topicColumns),
     tagNames: normalizeTagNames(saved?.tagNames ?? blueprint.tagNames),
     tagColors: normalizeTagColors(saved?.tagColors ?? blueprint.tagColors),
+    personNames: normalizePersonNames(saved?.personNames ?? blueprint.personNames),
     updatedAt: saved?.updatedAt ?? blueprint.updatedAt,
     categories: blueprint.categories.map((category, categoryIndex) => {
       const prior = previous.get(category.name);
@@ -123,6 +132,7 @@ export function mergeCurriculum(saved: AppState | null, blueprint: AppState): Ap
             ...topic,
             id: priorTopic?.id ?? topic.id,
             confidence: priorTopic?.confidence ?? "red",
+            jasmine: priorTopic?.jasmine ?? "red",
             order: topicIndex,
           };
         }),

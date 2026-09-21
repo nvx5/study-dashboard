@@ -185,7 +185,6 @@ body.display .cat li {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
   padding: 6px 16px;
   border-top: 1px solid var(--line);
   min-height: 37px;
@@ -206,32 +205,60 @@ body.display .topic-name {
   overflow-wrap: anywhere;
 }
 
-body.display .tag {
+body.display .people {
+  display: -webkit-flex;
+  display: flex;
+  -webkit-flex: 0 0 auto;
   flex: 0 0 auto;
-  padding: 0 7px;
-  border: 1px solid;
+  -webkit-align-items: center;
+  align-items: center;
+  margin-left: 12px;
+}
+
+body.display .person-tag {
+  display: -webkit-flex;
+  display: flex;
+  -webkit-flex: 0 0 auto;
+  flex: 0 0 auto;
+  -webkit-align-items: center;
+  align-items: center;
+  margin-left: 8px;
+  padding: 0 8px 0 6px;
+  border: 1px solid var(--line);
   border-radius: 2em;
+  background: var(--btn);
+  color: var(--text);
   font-size: 12px;
   font-weight: 500;
-  line-height: 18px;
+  line-height: 20px;
   white-space: nowrap;
 }
 
-body.display .tag[data-confidence="red"] {
+body.display .person-tag:first-child {
+  margin-left: 0;
+}
+
+body.display .person-name {
+  color: inherit;
+  white-space: nowrap;
+}
+
+body.display .dot {
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  border-radius: 50%;
+}
+
+body.display .person-tag[data-confidence="red"] .dot {
   background: var(--tag-red-bg);
-  color: var(--tag-red-text);
-  border-color: var(--tag-red-border);
 }
 
-body.display .tag[data-confidence="yellow"] {
+body.display .person-tag[data-confidence="yellow"] .dot {
   background: var(--tag-yellow-bg);
-  color: var(--tag-yellow-text);
-  border-color: var(--tag-yellow-border);
 }
 
-body.display .tag[data-confidence="green"] {
+body.display .person-tag[data-confidence="green"] .dot {
   background: var(--tag-green-bg);
-  color: var(--tag-green-text);
-  border-color: var(--tag-green-border);
 }
 

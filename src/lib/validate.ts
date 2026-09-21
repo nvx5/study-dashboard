@@ -22,6 +22,7 @@ import {
   type Theme,
   type Topic,
 } from "./types";
+import { isPersonId, normalizePersonNames, parseConfidence, type PersonId } from "./people";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -65,6 +66,7 @@ function parseTopic(item: unknown, label: string, seen: Set<string>): Topic {
     id,
     name,
     confidence: item.confidence,
+    jasmine: parseConfidence(item.jasmine),
     order: 0,
   };
 }
@@ -80,6 +82,8 @@ export function parseIncomingState(
   topicColumns?: number;
   tagNames?: AppState["tagNames"];
   tagColors?: AppState["tagColors"];
+  personNames?: AppState["personNames"];
+  person?: PersonId;
 } {
   if (!isRecord(body)) {
     throw new Error("Body must be an object");
@@ -164,6 +168,22 @@ export function parseIncomingState(
     tagColors = normalizeTagColors(body.tagColors);
   }
 
+  let person: PersonId | undefined;
+  if (body.person !== undefined) {
+    if (!isPersonId(body.person)) {
+      throw new Error("person must be nil or jasmine");
+    }
+    person = body.person;
+  }
+
+  let personNames: AppState["personNames"] | undefined;
+  if (body.personNames !== undefined) {
+    if (!isRecord(body.personNames)) {
+      throw new Error("personNames is invalid");
+    }
+    personNames = body.personNames as AppState["personNames"];
+  }
+
   if (!Array.isArray(body.categories)) {
     throw new Error("categories must be an array");
   }
@@ -226,6 +246,8 @@ export function parseIncomingState(
     ...(topicColumns !== undefined ? { topicColumns } : {}),
     ...(tagNames !== undefined ? { tagNames } : {}),
     ...(tagColors !== undefined ? { tagColors } : {}),
+    ...(personNames !== undefined ? { personNames } : {}),
+    ...(person !== undefined ? { person } : {}),
   };
 }
 
@@ -255,6 +277,7 @@ export function normalizeState(value: unknown): AppState | null {
       topicColumns: clampTopicColumns(value.topicColumns ?? TOPIC_COLUMNS_DEFAULT),
       tagNames: normalizeTagNames(parsed.tagNames ?? value.tagNames),
       tagColors: normalizeTagColors(parsed.tagColors ?? value.tagColors),
+      personNames: normalizePersonNames(parsed.personNames ?? value.personNames),
       version: DATA_VERSION,
       updatedAt,
     };

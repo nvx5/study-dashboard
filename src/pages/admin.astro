@@ -11,14 +11,12 @@ import {
 import {
   DEFAULT_TAG_COLORS,
   DEFAULT_TAG_NAMES,
-  MAX_TAG_NAME_LENGTH,
   TOPIC_COLUMNS_DEFAULT,
   normalizeTagColors,
-  normalizeTagNames,
 } from "../lib/display";
 import { CURRICULUM_FILENAME, CURRICULUM_TEXT } from "../lib/curriculum";
 import { DEFAULT_TITLE } from "../lib/defaults";
-import { categoryProgress } from "../lib/progress";
+import { categoryPairProgress } from "../lib/progress";
 import { getState } from "../lib/store";
 import { DATA_VERSION, type AppState } from "../lib/types";
 
@@ -42,6 +40,7 @@ try {
     topicColumns: TOPIC_COLUMNS_DEFAULT,
     tagNames: { ...DEFAULT_TAG_NAMES },
     tagColors: { ...DEFAULT_TAG_COLORS },
+    personNames: { nil: "N", jasmine: "J" },
     categories: [],
     updatedAt: 0,
   };
@@ -58,7 +57,6 @@ const boot = JSON.stringify({
   },
 }).replace(/</g, "\\u003c");
 
-const tagNames = normalizeTagNames(state.tagNames);
 const tagColors = normalizeTagColors(state.tagColors);
 ---
 
@@ -137,14 +135,6 @@ const tagColors = normalizeTagColors(state.tagColors);
         </div>
         <div class="display-row display-row-tag">
           <span class="display-label">3</span>
-          <input
-            type="text"
-            class="tag-name-input"
-            data-tag="red"
-            maxlength={MAX_TAG_NAME_LENGTH}
-            value={tagNames.red}
-            aria-label="Kiosk name for 3"
-          />
           <input type="color" class="tag-color-input" data-tag="red" value={tagColors.red} aria-label="Colour for 3" />
           <input
             type="text"
@@ -158,14 +148,6 @@ const tagColors = normalizeTagColors(state.tagColors);
         </div>
         <div class="display-row display-row-tag">
           <span class="display-label">2</span>
-          <input
-            type="text"
-            class="tag-name-input"
-            data-tag="yellow"
-            maxlength={MAX_TAG_NAME_LENGTH}
-            value={tagNames.yellow}
-            aria-label="Kiosk name for 2"
-          />
           <input type="color" class="tag-color-input" data-tag="yellow" value={tagColors.yellow} aria-label="Colour for 2" />
           <input
             type="text"
@@ -179,14 +161,6 @@ const tagColors = normalizeTagColors(state.tagColors);
         </div>
         <div class="display-row display-row-tag">
           <span class="display-label">1</span>
-          <input
-            type="text"
-            class="tag-name-input"
-            data-tag="green"
-            maxlength={MAX_TAG_NAME_LENGTH}
-            value={tagNames.green}
-            aria-label="Kiosk name for 1"
-          />
           <input type="color" class="tag-color-input" data-tag="green" value={tagColors.green} aria-label="Colour for 1" />
           <input
             type="text"
@@ -251,7 +225,7 @@ const tagColors = normalizeTagColors(state.tagColors);
       <div id="list" class="categories">
         {
           state.categories.map((category) => {
-            const progress = categoryProgress(category);
+            const progress = categoryPairProgress(category);
             return (
               <details class="category" data-id={category.id}>
                 <summary>
@@ -268,37 +242,8 @@ const tagColors = normalizeTagColors(state.tagColors);
                 </summary>
                 <ul class="topics">
                   {category.topics.map((topic) => (
-                    <li class="topic" data-id={topic.id} data-confidence={topic.confidence}>
+                    <li class="topic" data-id={topic.id}>
                       <span class="topic-name">{topic.name}</span>
-                      <div class="segment" role="group" aria-label={`Confidence for ${topic.name}`}>
-                        <button
-                          type="button"
-                          class="seg red"
-                          data-action="confidence"
-                          data-value="red"
-                          aria-pressed={topic.confidence === "red"}
-                        >
-                          3
-                        </button>
-                        <button
-                          type="button"
-                          class="seg yellow"
-                          data-action="confidence"
-                          data-value="yellow"
-                          aria-pressed={topic.confidence === "yellow"}
-                        >
-                          2
-                        </button>
-                        <button
-                          type="button"
-                          class="seg green"
-                          data-action="confidence"
-                          data-value="green"
-                          aria-pressed={topic.confidence === "green"}
-                        >
-                          1
-                        </button>
-                      </div>
                     </li>
                   ))}
                 </ul>
@@ -449,16 +394,6 @@ const tagColors = normalizeTagColors(state.tagColors);
         return "#" + s.toLowerCase();
       }
 
-      function collectTagNames() {
-        var names = Object.assign({}, state.tagNames || {});
-        var els = document.querySelectorAll(".tag-name-input");
-        for (var i = 0; i < els.length; i++) {
-          var key = els[i].getAttribute("data-tag");
-          if (key) names[key] = els[i].value;
-        }
-        return names;
-      }
-
       function collectTagColors() {
         var colors = Object.assign({}, state.tagColors || {});
         var els = document.querySelectorAll(".tag-hex-input");
@@ -473,21 +408,12 @@ const tagColors = normalizeTagColors(state.tagColors);
       function layoutRetryPatch() {
         return {
           topicColumns: Number(state.topicColumns),
-          tagNames: collectTagNames(),
           tagColors: collectTagColors(),
         };
       }
 
       function syncTagInputs() {
-        var names = state.tagNames || {};
         var colors = state.tagColors || {};
-        var nameEls = document.querySelectorAll(".tag-name-input");
-        for (var n = 0; n < nameEls.length; n++) {
-          var nameKey = nameEls[n].getAttribute("data-tag");
-          if (nameKey && typeof names[nameKey] === "string" && document.activeElement !== nameEls[n]) {
-            nameEls[n].value = names[nameKey];
-          }
-        }
         var hexEls = document.querySelectorAll(".tag-hex-input");
         for (var h = 0; h < hexEls.length; h++) {
           var hexKey = hexEls[h].getAttribute("data-tag");
@@ -537,21 +463,15 @@ const tagColors = normalizeTagColors(state.tagColors);
         return null;
       }
 
-      function findTopic(category, id) {
-        for (var i = 0; i < category.topics.length; i++) {
-          if (category.topics[i].id === id) return category.topics[i];
-        }
-        return null;
-      }
-
       function progressLabel(category) {
         var total = category.topics.length;
-        var done = 0;
+        var nilDone = 0;
+        var jasmineDone = 0;
         for (var i = 0; i < total; i++) {
-          if (category.topics[i].confidence === "green") done++;
+          if (category.topics[i].confidence === "green") nilDone++;
+          if (category.topics[i].jasmine === "green") jasmineDone++;
         }
-        var pct = total === 0 ? 0 : Math.round((done * 100) / total);
-        return done + "/" + total + " (" + pct + "%)";
+        return nilDone + "/" + total + " · " + jasmineDone + "/" + total;
       }
 
       function openIds() {
@@ -583,13 +503,9 @@ const tagColors = normalizeTagColors(state.tagColors);
           html += "</button></summary><ul class='topics'>";
           for (var t = 0; t < category.topics.length; t++) {
             var topic = category.topics[t];
-            html += '<li class="topic" data-id="' + escapeHtml(topic.id) + '" data-confidence="' + topic.confidence + '">';
+            html += '<li class="topic" data-id="' + escapeHtml(topic.id) + '">';
             html += '<span class="topic-name"></span>';
-            html += '<div class="segment" role="group">';
-            html += '<button type="button" class="seg red" data-action="confidence" data-value="red">3</button>';
-            html += '<button type="button" class="seg yellow" data-action="confidence" data-value="yellow">2</button>';
-            html += '<button type="button" class="seg green" data-action="confidence" data-value="green">1</button>';
-            html += "</div></li>";
+            html += "</li>";
           }
           html += "</ul></details>";
         }
@@ -612,10 +528,6 @@ const tagColors = normalizeTagColors(state.tagColors);
           for (var r = 0; r < rows.length; r++) {
             var item = cat.topics[r];
             rows[r].querySelector(".topic-name").textContent = item.name;
-            var buttons = rows[r].querySelectorAll("[data-action='confidence']");
-            for (var b = 0; b < buttons.length; b++) {
-              buttons[b].setAttribute("aria-pressed", buttons[b].getAttribute("data-value") === item.confidence ? "true" : "false");
-            }
           }
         }
       }
@@ -830,19 +742,6 @@ const tagColors = normalizeTagColors(state.tagColors);
       }
 
       function bindTagInputs() {
-        var nameEls = document.querySelectorAll(".tag-name-input");
-        for (var i = 0; i < nameEls.length; i++) {
-          nameEls[i].addEventListener("input", function () {
-            window.clearTimeout(tagTimer);
-            tagTimer = window.setTimeout(function () {
-              save(false, false, { tagNames: collectTagNames() });
-            }, 250);
-          });
-          nameEls[i].addEventListener("change", function () {
-            window.clearTimeout(tagTimer);
-            save(false, false, { tagNames: collectTagNames() });
-          });
-        }
         var colorEls = document.querySelectorAll(".tag-color-input");
         for (var c = 0; c < colorEls.length; c++) {
           colorEls[c].addEventListener("input", function (event) {
@@ -931,19 +830,6 @@ const tagColors = normalizeTagColors(state.tagColors);
           button.textContent = category.collapsed ? "Collapsed" : "Shown";
           save(false, false);
           return;
-        }
-
-        if (action === "confidence") {
-          var row = button.closest(".topic");
-          var topic = findTopic(category, row.getAttribute("data-id"));
-          topic.confidence = button.getAttribute("data-value");
-          var buttons = row.querySelectorAll("[data-action='confidence']");
-          for (var i = 0; i < buttons.length; i++) {
-            buttons[i].setAttribute("aria-pressed", buttons[i].getAttribute("data-value") === topic.confidence ? "true" : "false");
-          }
-          row.setAttribute("data-confidence", topic.confidence);
-          catNode.querySelector(".summary-progress").textContent = progressLabel(category);
-          save(false, false);
         }
       });
     })();

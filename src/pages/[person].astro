@@ -1,0 +1,456 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { DEFAULT_TAG_COLORS, DEFAULT_TAG_NAMES, TOPIC_COLUMNS_DEFAULT } from "../lib/display";
+import { ANKI_HEIGHT_DEFAULT } from "../lib/anki-cycle";
+import { DEFAULT_TITLE } from "../lib/defaults";
+import { DEFAULT_PERSON_NAMES, isPersonId, MAX_PERSON_NAME_LENGTH, PERSON_PAGE_TITLE, personDisplayName, topicConfidence, type PersonId } from "../lib/people";
+import { categoryProgress } from "../lib/progress";
+import { getState } from "../lib/store";
+import { DATA_VERSION, type AppState } from "../lib/types";
+
+const raw = Astro.params.person ?? "";
+if (!isPersonId(raw)) {
+  return new Response("Not found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+}
+const person: PersonId = raw;
+
+let loaded = true;
+let state: AppState;
+
+try {
+  state = await getState();
+} catch {
+  loaded = false;
+  state = {
+    version: DATA_VERSION,
+    title: DEFAULT_TITLE,
+    theme: "dark",
+    source: "",
+    ankiSource: "",
+    ankiCards: [],
+    ankiHidden: false,
+    ankiHeightVh: ANKI_HEIGHT_DEFAULT,
+    ankiCycleAt: 0,
+    topicColumns: TOPIC_COLUMNS_DEFAULT,
+    tagNames: { ...DEFAULT_TAG_NAMES },
+    tagColors: { ...DEFAULT_TAG_COLORS },
+    personNames: { ...DEFAULT_PERSON_NAMES },
+    categories: [],
+    updatedAt: 0,
+  };
+}
+
+const boot = JSON.stringify({
+  loaded,
+  person,
+  state,
+}).replace(/</g, "\\u003c");
+---
+
+<Layout title={PERSON_PAGE_TITLE[person]} page="admin">
+  <div class="wrap">
+    <p id="load-error" class="banner" hidden={loaded} role="status">
+      Couldn’t load saved topics. You can still edit, then save when the connection returns.
+    </p>
+
+    <section class="file" aria-label="display name">
+      <div class="file-head">
+        <span class="file-name">display name</span>
+        <div class="file-head-actions">
+          <p id="name-status" class="save-status" aria-live="polite"></p>
+        </div>
+      </div>
+      <div class="display-panel">
+        <div class="display-row">
+          <span class="display-label">Name</span>
+          <input
+            id="display-name"
+            type="text"
+            class="tag-name-input"
+            maxlength={MAX_PERSON_NAME_LENGTH}
+            value={personDisplayName(state.personNames, person)}
+            aria-label="Display name"
+          />
+        </div>
+      </div>
+    </section>
+
+    <section class="file" aria-label="curriculum">
+      <div class="file-head">
+        <span class="file-name">curriculum</span>
+        <div class="file-head-actions">
+          <p id="save-status" class="save-status" aria-live="polite"></p>
+          <span id="topics-meta" class="file-meta">
+            {state.categories.length} {state.categories.length === 1 ? "category" : "categories"}
+          </span>
+        </div>
+      </div>
+      <div id="list" class="categories">
+        {
+          state.categories.map((category) => {
+            const progress = categoryProgress(category, person);
+            return (
+              <details class="category" data-id={category.id}>
+                <summary>
+                  <span class="summary-name">{category.name}</span>
+                  <span class="summary-progress">{progress.label}</span>
+                </summary>
+                <ul class="topics">
+                  {category.topics.map((topic) => {
+                    const mark = topicConfidence(topic, person);
+                    return (
+                      <li class="topic" data-id={topic.id} data-confidence={mark}>
+                        <span class="topic-name">{topic.name}</span>
+                        <div class="segment" role="group" aria-label={`Confidence for ${topic.name}`}>
+                          <button
+                            type="button"
+                            class="seg red"
+                            data-action="confidence"
+                            data-value="red"
+                            aria-pressed={mark === "red"}
+                          >
+                            3
+                          </button>
+                          <button
+                            type="button"
+                            class="seg yellow"
+                            data-action="confidence"
+                            data-value="yellow"
+                            aria-pressed={mark === "yellow"}
+                          >
+                            2
+                          </button>
+                          <button
+                            type="button"
+                            class="seg green"
+                            data-action="confidence"
+                            data-value="green"
+                            aria-pressed={mark === "green"}
+                          >
+                            1
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </details>
+            );
+          })
+        }
+        <p id="empty" class="empty" hidden={state.categories.length > 0}>
+          Save curriculum.txt on /admin to generate topic cards.
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <script id="boot" type="application/json" is:inline set:html={boot} />
+
+  <script is:inline>
+    (function () {
+      var bootEl = document.getElementById("boot");
+      var listEl = document.getElementById("list");
+      var emptyEl = document.getElementById("empty");
+      var statusEl = document.getElementById("save-status");
+      var nameStatusEl = document.getElementById("name-status");
+      var nameEl = document.getElementById("display-name");
+      var loadErrorEl = document.getElementById("load-error");
+      var topicsMetaEl = document.getElementById("topics-meta");
+      if (!bootEl || !listEl || !emptyEl || !statusEl || !nameEl) return;
+
+      var boot = JSON.parse(bootEl.textContent || "{}");
+      var person = boot.person === "jasmine" ? "jasmine" : "nil";
+      var state = boot.state || { title: "Curriculum", theme: "dark", categories: [] };
+      var inFlight = false;
+      var queued = false;
+      var queuedExtra = null;
+      var clearTimer = 0;
+      var nameTimer = 0;
+      var POLL_MS = 2000;
+      var pollTimer = 0;
+      var pollBusy = false;
+
+      function topicMark(topic) {
+        if (person === "jasmine") return topic.jasmine || "red";
+        return topic.confidence || "red";
+      }
+
+      function setTopicMark(topic, value) {
+        if (person === "jasmine") topic.jasmine = value;
+        else topic.confidence = value;
+      }
+
+      function setStatus(text, kind, el) {
+        var target = el || statusEl;
+        if (!target) return;
+        target.textContent = text;
+        target.dataset.kind = kind || "";
+        window.clearTimeout(clearTimer);
+        if (kind === "ok") {
+          clearTimer = window.setTimeout(function () {
+            if (target.dataset.kind === "ok") {
+              target.textContent = "";
+              target.dataset.kind = "";
+            }
+          }, 1600);
+        }
+      }
+
+      function findCategory(id) {
+        for (var i = 0; i < state.categories.length; i++) {
+          if (state.categories[i].id === id) return state.categories[i];
+        }
+        return null;
+      }
+
+      function findTopic(category, id) {
+        for (var i = 0; i < category.topics.length; i++) {
+          if (category.topics[i].id === id) return category.topics[i];
+        }
+        return null;
+      }
+
+      function progressLabel(category) {
+        var total = category.topics.length;
+        var done = 0;
+        for (var i = 0; i < total; i++) {
+          if (topicMark(category.topics[i]) === "green") done++;
+        }
+        var pct = total === 0 ? 0 : Math.round((done * 100) / total);
+        return done + "/" + total + " (" + pct + "%)";
+      }
+
+      function curriculumKey(categories) {
+        return JSON.stringify(
+          (categories || []).map(function (category) {
+            return [
+              category.id,
+              category.name,
+              (category.topics || []).map(function (topic) {
+                return [topic.id, topic.name];
+              }),
+            ];
+          })
+        );
+      }
+
+      function openIds() {
+        var ids = [];
+        var open = listEl.querySelectorAll("details[open]");
+        for (var i = 0; i < open.length; i++) ids.push(open[i].getAttribute("data-id"));
+        return ids;
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function renderList() {
+        var opened = openIds();
+        var html = "";
+        for (var c = 0; c < state.categories.length; c++) {
+          var category = state.categories[c];
+          html +=
+            '<details class="category" data-id="' +
+            escapeHtml(category.id) +
+            '"' +
+            (opened.indexOf(category.id) !== -1 ? " open" : "") +
+            ">";
+          html += "<summary>";
+          html += '<span class="summary-name"></span>';
+          html += '<span class="summary-progress">' + escapeHtml(progressLabel(category)) + "</span>";
+          html += "</summary><ul class='topics'>";
+          for (var t = 0; t < category.topics.length; t++) {
+            var topic = category.topics[t];
+            var mark = topicMark(topic);
+            html +=
+              '<li class="topic" data-id="' +
+              escapeHtml(topic.id) +
+              '" data-confidence="' +
+              escapeHtml(mark) +
+              '">';
+            html += '<span class="topic-name"></span>';
+            html += '<div class="segment" role="group" aria-label="Confidence">';
+            html +=
+              '<button type="button" class="seg red" data-action="confidence" data-value="red" aria-pressed="' +
+              (mark === "red" ? "true" : "false") +
+              '">3</button>';
+            html +=
+              '<button type="button" class="seg yellow" data-action="confidence" data-value="yellow" aria-pressed="' +
+              (mark === "yellow" ? "true" : "false") +
+              '">2</button>';
+            html +=
+              '<button type="button" class="seg green" data-action="confidence" data-value="green" aria-pressed="' +
+              (mark === "green" ? "true" : "false") +
+              '">1</button>';
+            html += "</div></li>";
+          }
+          html += "</ul></details>";
+        }
+        if (!state.categories.length) {
+          html = '<p id="empty" class="empty">Save curriculum.txt on /admin to generate topic cards.</p>';
+        }
+        listEl.innerHTML = html;
+        emptyEl = document.getElementById("empty");
+        if (topicsMetaEl) {
+          var n = state.categories.length;
+          topicsMetaEl.textContent = n + (n === 1 ? " category" : " categories");
+        }
+
+        var cats = listEl.querySelectorAll(".category");
+        for (var i = 0; i < cats.length; i++) {
+          var catNode = cats[i];
+          var cat = findCategory(catNode.getAttribute("data-id"));
+          if (!cat) continue;
+          catNode.querySelector(".summary-name").textContent = cat.name;
+          var rows = catNode.querySelectorAll(".topic");
+          for (var r = 0; r < rows.length; r++) {
+            var item = cat.topics[r];
+            if (!item) continue;
+            rows[r].querySelector(".topic-name").textContent = item.name;
+          }
+        }
+      }
+
+      function applyRemote(data) {
+        if (!data || typeof data !== "object") return;
+        if (typeof data.updatedAt === "number" && data.updatedAt < (state.updatedAt || 0)) return;
+        var prevKey = curriculumKey(state.categories);
+        if (data.categories) state.categories = data.categories;
+        if (data.personNames) {
+          state.personNames = data.personNames;
+          if (document.activeElement !== nameEl) {
+            var nextName = data.personNames[person] || (person === "jasmine" ? "J" : "N");
+            if (nameEl.value !== nextName) nameEl.value = nextName;
+          }
+        }
+        if (typeof data.updatedAt === "number") state.updatedAt = data.updatedAt;
+        if (typeof data.title === "string") state.title = data.title;
+        if (curriculumKey(state.categories) !== prevKey) renderList();
+      }
+
+      async function save(extra) {
+        if (extra) queuedExtra = Object.assign({}, queuedExtra || {}, extra);
+        if (inFlight) {
+          queued = true;
+          return;
+        }
+        inFlight = true;
+        try {
+          do {
+            var send = queuedExtra;
+            queuedExtra = null;
+            queued = false;
+            var statusTarget = send && send.personNames && nameStatusEl ? nameStatusEl : statusEl;
+            setStatus("Saving…", "pending", statusTarget);
+            var body = {
+              title: state.title || "MSRA Master Clinical Curriculum",
+              theme: "dark",
+              categories: state.categories,
+              person: person,
+            };
+            if (send && send.personNames) body.personNames = send.personNames;
+            var res = await fetch("/api/topics", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify(body),
+            });
+            var data = await res.json().catch(function () {
+              return {};
+            });
+            if (!res.ok) throw new Error(data.error || "Save failed");
+            applyRemote(data);
+            if (loadErrorEl) loadErrorEl.hidden = true;
+            setStatus("Saved", "ok", statusTarget);
+          } while (queued);
+        } catch (err) {
+          setStatus(err && err.message ? err.message : "Couldn’t save. Tap to retry.", "error", extra && extra.personNames && nameStatusEl ? nameStatusEl : statusEl);
+        } finally {
+          inFlight = false;
+        }
+      }
+
+      function currentPersonNames() {
+        var names = Object.assign({ nil: "N", jasmine: "J" }, state.personNames || {});
+        names[person] = nameEl.value;
+        return names;
+      }
+
+      function saveName() {
+        save({ personNames: currentPersonNames() });
+      }
+
+      statusEl.addEventListener("click", function () {
+        if (statusEl.dataset.kind === "error") save();
+      });
+      if (nameStatusEl) {
+        nameStatusEl.addEventListener("click", function () {
+          if (nameStatusEl.dataset.kind === "error") saveName();
+        });
+      }
+
+      nameEl.addEventListener("input", function () {
+        window.clearTimeout(nameTimer);
+        nameTimer = window.setTimeout(saveName, 250);
+      });
+      nameEl.addEventListener("change", function () {
+        window.clearTimeout(nameTimer);
+        saveName();
+      });
+
+      listEl.addEventListener("click", function (event) {
+        var button = event.target.closest("button");
+        if (!button) return;
+        if (button.getAttribute("data-action") !== "confidence") return;
+        var catNode = button.closest(".category");
+        var row = button.closest(".topic");
+        if (!catNode || !row) return;
+        var category = findCategory(catNode.getAttribute("data-id"));
+        var topic = category && findTopic(category, row.getAttribute("data-id"));
+        if (!topic) return;
+        var value = button.getAttribute("data-value");
+        setTopicMark(topic, value);
+        var buttons = row.querySelectorAll("[data-action='confidence']");
+        for (var i = 0; i < buttons.length; i++) {
+          buttons[i].setAttribute("aria-pressed", buttons[i].getAttribute("data-value") === value ? "true" : "false");
+        }
+        row.setAttribute("data-confidence", value);
+        catNode.querySelector(".summary-progress").textContent = progressLabel(category);
+        save();
+      });
+
+      async function poll() {
+        if (pollBusy || inFlight || queued) {
+          window.clearTimeout(pollTimer);
+          pollTimer = window.setTimeout(poll, POLL_MS);
+          return;
+        }
+        pollBusy = true;
+        try {
+          var res = await fetch("/api/topics?t=" + Date.now(), {
+            headers: { Accept: "application/json", "Cache-Control": "no-cache" },
+          });
+          var data = await res.json().catch(function () {
+            return {};
+          });
+          if (res.ok && !inFlight && !queued) applyRemote(data);
+        } catch (err) {
+        } finally {
+          pollBusy = false;
+          window.clearTimeout(pollTimer);
+          pollTimer = window.setTimeout(poll, POLL_MS);
+        }
+      }
+
+      poll();
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "visible") poll();
+      });
+    })();
+  </script>
+</Layout>
