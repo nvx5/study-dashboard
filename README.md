@@ -1,81 +1,28 @@
-Personal project to power a Raspberry Pi always-on study dashboard. Vibe-coded using Cursor.
+<div align="center">
+<img width="2048" height="768" alt="Dark Medical Curriculum Dashboard" src="https://github.com/user-attachments/assets/da16e887-4714-499f-89a3-41e9a6bef00b" />
+</div>
 
-# Study dashboard
+### Project
 
-A tiny Astro site for a Raspberry Pi study display and a phone control page.
+**A customisable, Raspberry Pi-powered study dashboard designed to run continuously on a small, wall-mounted display.** This personal project provides a dedicated, always-visible overview of study progress, organising a custom curriculum into overarching subjects, individual topics and confidence-based assessments. Designed to make tracking revision intuitive, accessible and part of the everyday environment rather than something hidden away in an app.
 
-- `/` — fullscreen topic list for the Pi (no controls)
-- `/admin` — phone page to change confidence, add/edit/delete/reorder topics
+One-shot vibe-coded using [Cursor](https://cursor.com/).
 
-Topic state is stored in Cloudflare D1 so both devices stay in sync.
+> **Project status:** Complete and fully functional. Deployed on Raspberry Pi with an always-on display mounted on an IKEA SKÅDIS pegboard.
 
-## 1. Install
+### Highlights
 
-```bash
-npm install
-```
+- Raspberry Pi-powered dashboard designed for continuous operation on a compact, wall-mounted monitor.
+- Customisable curriculum structure, allowing users to organise their studies into overarching subjects and individual topics.
+- Three-level confidence rating system for each topic, making it easy to distinguish between areas requiring further study, those needing revision and those confidently understood.
+- At-a-glance overview of study progress across the entire curriculum, designed to remain readable on a small display.
 
-## 2. Run locally
+### Gallery
 
-```bash
-npm run dev
-```
+<p align="center">
+  <img width="1640" height="664" alt="New Project(32)" src="https://github.com/user-attachments/assets/56ad77e2-02db-45e9-9ea2-c66af3ff219f" />
+</p>
 
-Open [http://localhost:4321](http://localhost:4321) for the display and [http://localhost:4321/admin](http://localhost:4321/admin) for admin.
+### Contributing & License
 
-Local D1 storage is created automatically in `.wrangler/` and kept across restarts. No Cloudflare account is required for development.
-
-## 3. Storage setup
-
-Create one D1 database (production only):
-
-```bash
-npx wrangler login
-npx wrangler d1 create study-dashboard
-```
-
-Copy the printed database ID into `wrangler.jsonc`:
-
-```jsonc
-"database_id": "paste-your-id-here"
-```
-
-The app creates its table and seed topics on first request. No migrations to run.
-
-## 4. Environment variables
-
-None. The only required production value is `database_id` in `wrangler.jsonc`.
-
-## 5. Deploy to Cloudflare
-
-```bash
-npm run deploy
-```
-
-That builds the site and deploys it as a Cloudflare Worker.
-
-You can also import this repo in the Cloudflare dashboard (Workers), using build command `npm run build`. Keep the D1 binding name as `DB`.
-
-## 6. Raspberry Pi display URL
-
-Point the Pi browser at the Worker URL root:
-
-`https://<your-worker>.workers.dev/`
-
-After a deploy, power-cycle the Pi so it loads the new page JS. Data updates (tags, ratings) do not require a reboot once this script is running; they arrive by polling.
-
-The tiny [buildroot-webkit](https://github.com/TOLDOTECHNIK/buildroot-webkit) kiosk OS uses an old WPE WebKit (not Chromium). The display script is written for that. If you later use a bigger SD card, Raspberry Pi OS + Chromium kiosk also works:
-
-```bash
-chromium-browser --kiosk --noerrdialogs --disable-infobars https://<your-worker>.workers.dev/
-```
-
-## 7. Phone admin URL
-
-`https://<your-worker>.workers.dev/admin`
-
-There is no login. Treat the URL as private.
-
-## 8. Default topics
-
-Edit topics in admin as a normal text file: `# Heading` then one topic per line. **Save** builds the cards. New headings/topics default to Need (red); existing tags stay as they are.
+This is a finished open-source project. Feel free to do anything with it. Contributions, issues, and feature requests are welcome.
