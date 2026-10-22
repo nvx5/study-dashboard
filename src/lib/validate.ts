@@ -1,5 +1,3 @@
-import { parseAnki, MAX_ANKI_SOURCE_LENGTH } from "./anki";
-import { ANKI_HEIGHT_DEFAULT, clampAnkiHeight } from "./anki-cycle";
 import {
   TOPIC_COLUMNS_DEFAULT,
   clampTopicColumns,
@@ -22,7 +20,6 @@ import {
   type Theme,
   type Topic,
 } from "./types";
-import { isPersonId, normalizePersonNames, parseConfidence, type PersonId } from "./people";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -66,7 +63,6 @@ function parseTopic(item: unknown, label: string, seen: Set<string>): Topic {
     id,
     name,
     confidence: item.confidence,
-    jasmine: parseConfidence(item.jasmine),
     order: 0,
   };
 }
@@ -75,15 +71,9 @@ export function parseIncomingState(
   body: unknown,
 ): Pick<AppState, "title" | "theme" | "categories"> & {
   source?: string;
-  ankiSource?: string;
-  ankiHidden?: boolean;
-  ankiHeightVh?: number;
-  ankiCycleAt?: number;
   topicColumns?: number;
   tagNames?: AppState["tagNames"];
   tagColors?: AppState["tagColors"];
-  personNames?: AppState["personNames"];
-  person?: PersonId;
 } {
   if (!isRecord(body)) {
     throw new Error("Body must be an object");
@@ -127,32 +117,6 @@ export function parseIncomingState(
     }
   }
 
-  let ankiSource: string | undefined;
-  if (typeof body.ankiSource === "string") {
-    ankiSource = body.ankiSource.replace(/\r\n/g, "\n");
-    if (ankiSource.length > MAX_ANKI_SOURCE_LENGTH) {
-      throw new Error("anki.txt is too long");
-    }
-  }
-
-  let ankiHidden: boolean | undefined;
-  if (typeof body.ankiHidden === "boolean") {
-    ankiHidden = body.ankiHidden;
-  }
-
-  let ankiHeightVh: number | undefined;
-  if (body.ankiHeightVh !== undefined) {
-    ankiHeightVh = clampAnkiHeight(body.ankiHeightVh);
-  }
-
-  let ankiCycleAt: number | undefined;
-  if (typeof body.ankiCycleAt === "number" && Number.isFinite(body.ankiCycleAt)) {
-    const now = Date.now();
-    ankiCycleAt = Math.round(body.ankiCycleAt);
-    if (ankiCycleAt > now + 5000) ankiCycleAt = now;
-    if (ankiCycleAt < now - 366 * 24 * 60 * 60 * 1000) ankiCycleAt = now;
-  }
-
   let topicColumns: number | undefined;
   if (body.topicColumns !== undefined) {
     topicColumns = clampTopicColumns(body.topicColumns);
@@ -166,22 +130,6 @@ export function parseIncomingState(
   let tagColors: AppState["tagColors"] | undefined;
   if (body.tagColors !== undefined) {
     tagColors = normalizeTagColors(body.tagColors);
-  }
-
-  let person: PersonId | undefined;
-  if (body.person !== undefined) {
-    if (!isPersonId(body.person)) {
-      throw new Error("person must be nil or jasmine");
-    }
-    person = body.person;
-  }
-
-  let personNames: AppState["personNames"] | undefined;
-  if (body.personNames !== undefined) {
-    if (!isRecord(body.personNames)) {
-      throw new Error("personNames is invalid");
-    }
-    personNames = body.personNames as AppState["personNames"];
   }
 
   if (!Array.isArray(body.categories)) {
@@ -239,15 +187,9 @@ export function parseIncomingState(
     theme,
     categories,
     ...(source !== undefined ? { source } : {}),
-    ...(ankiSource !== undefined ? { ankiSource } : {}),
-    ...(ankiHidden !== undefined ? { ankiHidden } : {}),
-    ...(ankiHeightVh !== undefined ? { ankiHeightVh } : {}),
-    ...(ankiCycleAt !== undefined ? { ankiCycleAt } : {}),
     ...(topicColumns !== undefined ? { topicColumns } : {}),
     ...(tagNames !== undefined ? { tagNames } : {}),
     ...(tagColors !== undefined ? { tagColors } : {}),
-    ...(personNames !== undefined ? { personNames } : {}),
-    ...(person !== undefined ? { person } : {}),
   };
 }
 
@@ -261,23 +203,12 @@ export function normalizeState(value: unknown): AppState | null {
       typeof value.updatedAt === "number" && Number.isFinite(value.updatedAt)
         ? value.updatedAt
         : Date.now();
-    const ankiSource =
-      parsed.ankiSource ?? (typeof value.ankiSource === "string" ? value.ankiSource : "");
     return {
       ...parsed,
       source: parsed.source ?? CURRICULUM_TEXT,
-      ankiSource,
-      ankiCards: parseAnki(ankiSource),
-      ankiHidden: value.ankiHidden === true,
-      ankiHeightVh: clampAnkiHeight(value.ankiHeightVh ?? ANKI_HEIGHT_DEFAULT),
-      ankiCycleAt:
-        typeof value.ankiCycleAt === "number" && Number.isFinite(value.ankiCycleAt)
-          ? value.ankiCycleAt
-          : updatedAt,
       topicColumns: clampTopicColumns(value.topicColumns ?? TOPIC_COLUMNS_DEFAULT),
       tagNames: normalizeTagNames(parsed.tagNames ?? value.tagNames),
       tagColors: normalizeTagColors(parsed.tagColors ?? value.tagColors),
-      personNames: normalizePersonNames(parsed.personNames ?? value.personNames),
       version: DATA_VERSION,
       updatedAt,
     };

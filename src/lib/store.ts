@@ -1,6 +1,4 @@
 import { env } from "cloudflare:workers";
-import { parseAnki } from "./anki";
-import { ANKI_HEIGHT_DEFAULT, clampAnkiHeight } from "./anki-cycle";
 import {
   DEFAULT_TAG_COLORS,
   DEFAULT_TAG_NAMES,
@@ -11,7 +9,6 @@ import {
 } from "./display";
 import { CURRICULUM_TEXT } from "./curriculum";
 import { createDefaultState, mergeCurriculum, stateFromSource } from "./defaults";
-import { applyPersonRatings, isPersonId, mergePersonNames, type PersonId } from "./people";
 import { DATA_VERSION, type AppState } from "./types";
 import { normalizeState } from "./validate";
 
@@ -73,15 +70,9 @@ export async function getState(): Promise<AppState> {
 export async function setState(
   next: Pick<AppState, "title" | "theme" | "categories"> & {
     source?: string;
-    ankiSource?: string;
-    ankiHidden?: boolean;
-    ankiHeightVh?: number;
-    ankiCycleAt?: number;
     topicColumns?: number;
     tagNames?: AppState["tagNames"];
     tagColors?: AppState["tagColors"];
-    personNames?: AppState["personNames"];
-    person?: PersonId;
   },
 ): Promise<AppState> {
   const db = getDb();
@@ -91,43 +82,17 @@ export async function setState(
   let state =
     typeof next.source === "string"
       ? stateFromSource(next.source, { ...current, categories: next.categories })
-      : isPersonId(next.person)
-        ? {
-            ...current,
-            categories: applyPersonRatings(current.categories, next.categories, next.person),
-          }
-        : {
-            ...current,
-            title: next.title,
-            theme: "dark" as const,
-            categories: next.categories.map((category, categoryIndex) => ({
-              ...category,
-              order: categoryIndex,
-              topics: category.topics.map((topic, topicIndex) => ({ ...topic, order: topicIndex })),
-            })),
-          };
+      : {
+          ...current,
+          title: next.title,
+          theme: "dark" as const,
+          categories: next.categories.map((category, categoryIndex) => ({
+            ...category,
+            order: categoryIndex,
+            topics: category.topics.map((topic, topicIndex) => ({ ...topic, order: topicIndex })),
+          })),
+        };
 
-  if (typeof next.ankiSource === "string") {
-    state = {
-      ...state,
-      ankiSource: next.ankiSource,
-      ankiCards: parseAnki(next.ankiSource),
-      ankiCycleAt: Date.now(),
-    };
-  } else {
-    state = {
-      ...state,
-      ankiSource: current.ankiSource,
-      ankiCards: current.ankiCards,
-    };
-  }
-
-  if (typeof next.ankiHidden === "boolean") {
-    state = { ...state, ankiHidden: next.ankiHidden };
-  }
-  if (typeof next.ankiHeightVh === "number") {
-    state = { ...state, ankiHeightVh: clampAnkiHeight(next.ankiHeightVh) };
-  }
   if (typeof next.topicColumns === "number") {
     state = { ...state, topicColumns: clampTopicColumns(next.topicColumns) };
   }
@@ -136,12 +101,6 @@ export async function setState(
   }
   if (next.tagColors) {
     state = { ...state, tagColors: normalizeTagColors(next.tagColors) };
-  }
-  if (next.personNames) {
-    state = { ...state, personNames: mergePersonNames(state.personNames, next.personNames) };
-  }
-  if (typeof next.ankiCycleAt === "number" && Number.isFinite(next.ankiCycleAt)) {
-    state = { ...state, ankiCycleAt: next.ankiCycleAt };
   }
 
   const saved: AppState = {
@@ -164,24 +123,15 @@ function parsePayload(payload: string): AppState | null {
 
 function hydrate(saved: AppState | null): AppState {
   if (!saved) return createDefaultState();
-  const withAnki = {
+  const next = {
     ...saved,
-    ankiSource: saved.ankiSource ?? "",
-    ankiCards: saved.ankiCards ?? [],
-    ankiHidden: saved.ankiHidden === true,
-    ankiHeightVh: clampAnkiHeight(saved.ankiHeightVh ?? ANKI_HEIGHT_DEFAULT),
-    ankiCycleAt:
-      typeof saved.ankiCycleAt === "number" && Number.isFinite(saved.ankiCycleAt)
-        ? saved.ankiCycleAt
-        : saved.updatedAt,
     topicColumns: clampTopicColumns(saved.topicColumns ?? TOPIC_COLUMNS_DEFAULT),
     tagNames: normalizeTagNames(saved.tagNames ?? DEFAULT_TAG_NAMES),
     tagColors: normalizeTagColors(saved.tagColors ?? DEFAULT_TAG_COLORS),
-    personNames: mergePersonNames(undefined, saved.personNames),
   };
-  if (withAnki.source) return withAnki;
+  if (next.source) return next;
   return {
-    ...mergeCurriculum(withAnki, createDefaultState()),
+    ...mergeCurriculum(next, createDefaultState()),
     source: CURRICULUM_TEXT,
     updatedAt: saved.updatedAt,
   };

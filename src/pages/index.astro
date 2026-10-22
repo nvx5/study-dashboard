@@ -1,18 +1,17 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import { ANKI_CARD_MS, ANKI_FRONT_MS, ANKI_HEIGHT_DEFAULT } from "../lib/anki-cycle";
 import {
   clampTopicColumns,
   DEFAULT_TAG_COLORS,
   DEFAULT_TAG_NAMES,
+  normalizeTagNames,
   splitIntoColumns,
   tagCssVars,
   TOPIC_COLUMNS_DEFAULT,
 } from "../lib/display";
 import { DEFAULT_TITLE } from "../lib/defaults";
 import { getState } from "../lib/store";
-import { personDisplayName, topicConfidence } from "../lib/people";
-import { categoryPairProgress } from "../lib/progress";
+import { categoryProgress } from "../lib/progress";
 import { DATA_VERSION, type AppState } from "../lib/types";
 
 let loaded = true;
@@ -27,15 +26,9 @@ try {
     title: DEFAULT_TITLE,
     theme: "dark",
     source: "",
-    ankiSource: "",
-    ankiCards: [],
-    ankiHidden: false,
-    ankiHeightVh: ANKI_HEIGHT_DEFAULT,
-    ankiCycleAt: 0,
     topicColumns: TOPIC_COLUMNS_DEFAULT,
     tagNames: { ...DEFAULT_TAG_NAMES },
     tagColors: { ...DEFAULT_TAG_COLORS },
-    personNames: { nil: "N", jasmine: "J" },
     categories: [],
     updatedAt: 0,
   };
@@ -44,12 +37,13 @@ try {
 const boot = JSON.stringify({
   loaded,
   state,
-  anki: { frontMs: ANKI_FRONT_MS, cardMs: ANKI_CARD_MS },
 }).replace(/</g, "\\u003c");
+
+const tagNames = normalizeTagNames(state.tagNames);
 ---
 
 <Layout title="Curriculum" page="display">
-  <div class="frame" data-anki={state.ankiCards.length && !state.ankiHidden ? "on" : "off"} style={tagCssVars(state.tagColors)}>
+  <div class="frame" style={tagCssVars(state.tagColors)}>
     <div class="stage">
       <p id="empty" class="empty" hidden={state.categories.length > 0 || !loaded}>
         No topics yet
@@ -66,22 +60,15 @@ const boot = JSON.stringify({
                 <article class="cat" data-collapsed={category.collapsed ? "true" : "false"}>
                   <h2>
                     <span class="cat-title">{category.name}</span>
-                    <span class="cat-progress">{categoryPairProgress(category).label}</span>
+                    <span class="cat-progress">{categoryProgress(category).label}</span>
                   </h2>
                   {category.collapsed ? null : (
                     <ul>
                       {category.topics.map((topic) => (
                         <li>
                           <span class="topic-name">{topic.name}</span>
-                          <span class="people">
-                            <span class="person-tag" data-confidence={topicConfidence(topic, "nil")}>
-                              <span class="dot" />
-                              <span class="person-name">{personDisplayName(state.personNames, "nil")}</span>
-                            </span>
-                            <span class="person-tag" data-confidence={topicConfidence(topic, "jasmine")}>
-                              <span class="dot" />
-                              <span class="person-name">{personDisplayName(state.personNames, "jasmine")}</span>
-                            </span>
+                          <span class="tag" data-confidence={topic.confidence}>
+                            {tagNames[topic.confidence]}
                           </span>
                         </li>
                       ))}
@@ -94,22 +81,6 @@ const boot = JSON.stringify({
         }
       </div>
     </div>
-
-    <section
-      id="anki"
-      class="anki"
-      hidden={!state.ankiCards.length || state.ankiHidden}
-      style={`--anki-dock: ${state.ankiHeightVh}vh`}
-    >
-      <div class="anki-head">
-        <span class="anki-title">Anki</span>
-        <span id="anki-side" class="anki-side">{state.ankiCards.length ? "Front" : ""}</span>
-        <span id="anki-count" class="anki-count">
-          {state.ankiCards.length ? `1/${state.ankiCards.length}` : ""}
-        </span>
-      </div>
-      <div id="anki-text" class="anki-text" set:html={state.ankiCards[0] ? state.ankiCards[0].front : ""} />
-    </section>
   </div>
 
   <script id="boot" type="application/json" is:inline set:html={boot} />
@@ -119,23 +90,17 @@ const boot = JSON.stringify({
       var POLL_MS = 2000;
       var CACHE_KEY = "study-dashboard-cache";
       var DEFAULT_COLORS = { red: "#f85149", yellow: "#e3b341", green: "#3fb950" };
+      var DEFAULT_NAMES = { red: "Needs study", yellow: "Improving", green: "Confident" };
 
       var boardEl = document.getElementById("board");
       var emptyEl = document.getElementById("empty");
       var waitingEl = document.getElementById("waiting");
       var bootEl = document.getElementById("boot");
       var frameEl = document.querySelector(".frame");
-      var ankiEl = document.getElementById("anki");
-      var ankiText = document.getElementById("anki-text");
-      var ankiSide = document.getElementById("anki-side");
-      var ankiCount = document.getElementById("anki-count");
       if (!boardEl || !emptyEl || !waitingEl || !bootEl) return;
 
       var boot = JSON.parse(bootEl.textContent || "{}");
-      var state = boot.state || { categories: [], ankiCards: [], updatedAt: 0 };
-      var FRONT_MS = (boot.anki && boot.anki.frontMs) || 30000;
-      var CARD_MS = (boot.anki && boot.anki.cardMs) || 120000;
-      var ankiKey = "";
+      var state = boot.state || { categories: [], updatedAt: 0 };
       var pollTimer = 0;
       var pollBusy = false;
 
@@ -199,29 +164,10 @@ const boot = JSON.stringify({
         return { bg: parsed, text: text, border: "#" + mix(r) + mix(g) + mix(b) };
       }
 
-      function personName(id) {
-        var names = state.personNames || {};
-        if (names[id]) return names[id];
-        return id === "jasmine" ? "J" : "N";
-      }
-
-      function personTag(label, conf) {
-        var wrap = document.createElement("span");
-        wrap.className = "person-tag";
-        wrap.setAttribute("data-confidence", conf || "red");
-        var dot = document.createElement("span");
-        dot.className = "dot";
-        var nameEl = document.createElement("span");
-        nameEl.className = "person-name";
-        nameEl.textContent = label;
-        wrap.appendChild(dot);
-        wrap.appendChild(nameEl);
-        return wrap;
-      }
-
-      function topicMark(topic, person) {
-        if (person === "jasmine") return topic.jasmine || "red";
-        return topic.confidence || "red";
+      function tagLabel(conf) {
+        var names = state.tagNames || {};
+        if (names[conf]) return names[conf];
+        return DEFAULT_NAMES[conf] || conf;
       }
 
       function applyTagTheme() {
@@ -261,12 +207,12 @@ const boot = JSON.stringify({
             var name = document.createElement("span");
             name.className = "topic-name";
             name.textContent = topic.name;
-            var people = document.createElement("span");
-            people.className = "people";
-            people.appendChild(personTag(personName("nil"), topicMark(topic, "nil")));
-            people.appendChild(personTag(personName("jasmine"), topicMark(topic, "jasmine")));
+            var tag = document.createElement("span");
+            tag.className = "tag";
+            tag.setAttribute("data-confidence", topic.confidence || "red");
+            tag.textContent = tagLabel(topic.confidence || "red");
             li.appendChild(name);
-            li.appendChild(people);
+            li.appendChild(tag);
             list.appendChild(li);
           }
           article.appendChild(list);
@@ -301,61 +247,14 @@ const boot = JSON.stringify({
         applyColumns();
       }
 
-      function ankiCards() {
-        return isArray(state.ankiCards) ? state.ankiCards : [];
-      }
-
-      function ankiPos() {
-        var cards = ankiCards();
-        if (!cards.length) return null;
-        var origin = typeof state.ankiCycleAt === "number" ? state.ankiCycleAt : nowMs();
-        var elapsed = Math.max(0, nowMs() - origin);
-        var index = Math.floor(elapsed / CARD_MS) % cards.length;
-        var inCard = elapsed % CARD_MS;
-        return {
-          index: index,
-          showBack: inCard >= FRONT_MS,
-          cards: cards,
-        };
-      }
-
-      function paintAnki() {
-        if (!ankiEl || !ankiText || !ankiSide) return;
-        var pos = ankiPos();
-        var show = !!(pos && !state.ankiHidden);
-        setHidden(ankiEl, !show);
-        if (frameEl) frameEl.setAttribute("data-anki", show ? "on" : "off");
-        var height = Number(state.ankiHeightVh);
-        if (height === height && height > 0) {
-          var dock = height + "vh";
-          try {
-            ankiEl.style.setProperty("--anki-dock", dock);
-          } catch (err) {}
-          ankiEl.style.height = dock;
-          ankiEl.style.flexBasis = dock;
-        }
-        if (!pos) return;
-        var card = pos.cards[pos.index];
-        ankiSide.textContent = pos.showBack ? "Back" : "Front";
-        if (ankiCount) ankiCount.textContent = pos.index + 1 + "/" + pos.cards.length;
-        ankiText.innerHTML = pos.showBack ? card.back : card.front;
-      }
-
-      function syncAnkiDeck() {
-        var key = JSON.stringify(ankiCards());
-        if (key !== ankiKey) ankiKey = key;
-        paintAnki();
-      }
-
       function progressLabel(category) {
         var total = category.topics.length;
-        var nilDone = 0;
-        var jasmineDone = 0;
+        var done = 0;
         for (var i = 0; i < total; i++) {
-          if (topicMark(category.topics[i], "nil") === "green") nilDone++;
-          if (topicMark(category.topics[i], "jasmine") === "green") jasmineDone++;
+          if (category.topics[i].confidence === "green") done++;
         }
-        return nilDone + "/" + total + " · " + jasmineDone + "/" + total;
+        var pct = total === 0 ? 0 : Math.round((done * 100) / total);
+        return done + "/" + total + " (" + pct + "%)";
       }
 
       function applyColumns() {
@@ -404,7 +303,7 @@ const boot = JSON.stringify({
         if (!next || !isArray(next.categories)) return;
         var prev = JSON.stringify(state.categories);
         var prevCols = Number(state.topicColumns);
-        var prevNames = JSON.stringify(state.personNames || {});
+        var prevNames = JSON.stringify(state.tagNames || {});
         var incoming = JSON.stringify(next.categories);
         state = next;
         persist();
@@ -412,11 +311,10 @@ const boot = JSON.stringify({
         if (
           prev !== incoming ||
           prevCols !== Number(state.topicColumns) ||
-          prevNames !== JSON.stringify(state.personNames || {})
+          prevNames !== JSON.stringify(state.tagNames || {})
         ) {
           paint();
         } else applyColumns();
-        syncAnkiDeck();
       }
 
       function poll() {
@@ -492,8 +390,6 @@ const boot = JSON.stringify({
       keepAwake();
       applyTagTheme();
       applyColumns();
-      syncAnkiDeck();
-      setInterval(paintAnki, 250);
       poll();
       document.addEventListener("visibilitychange", function () {
         if (document.visibilityState === "visible") {

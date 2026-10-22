@@ -1,5 +1,4 @@
 import { CURRICULUM_TEXT, parseCurriculum, type CurriculumCategory } from "./curriculum";
-import { ANKI_HEIGHT_DEFAULT, clampAnkiHeight } from "./anki-cycle";
 import {
   DEFAULT_TAG_COLORS,
   DEFAULT_TAG_NAMES,
@@ -9,7 +8,6 @@ import {
   normalizeTagNames,
 } from "./display";
 import { DATA_VERSION, type AppState, type Category } from "./types";
-import { DEFAULT_PERSON_NAMES, normalizePersonNames } from "./people";
 
 export const DEFAULT_TITLE = "MSRA Master Clinical Curriculum";
 export const DEFAULT_THEME = "dark" as const;
@@ -28,7 +26,6 @@ export function categoriesFromParsed(parsed: CurriculumCategory[]): Category[] {
       id: `cat-${slug(categoryIndex)}-t${slug(topicIndex)}`,
       name,
       confidence: "red" as const,
-      jasmine: "red" as const,
       order: topicIndex,
     })),
   }));
@@ -41,15 +38,9 @@ export function createDefaultState(): AppState {
     theme: DEFAULT_THEME,
     source: CURRICULUM_TEXT,
     categories: categoriesFromParsed(parseCurriculum(CURRICULUM_TEXT)),
-    ankiSource: "",
-    ankiCards: [],
-    ankiHidden: false,
-    ankiHeightVh: ANKI_HEIGHT_DEFAULT,
-    ankiCycleAt: Date.now(),
     topicColumns: TOPIC_COLUMNS_DEFAULT,
     tagNames: { ...DEFAULT_TAG_NAMES },
     tagColors: { ...DEFAULT_TAG_COLORS },
-    personNames: { ...DEFAULT_PERSON_NAMES },
     updatedAt: Date.now(),
   };
 }
@@ -66,15 +57,9 @@ export function stateFromSource(source: string, saved: AppState | null): AppStat
     theme: "dark",
     source,
     categories: categoriesFromParsed(parsed),
-    ankiSource: saved?.ankiSource ?? "",
-    ankiCards: saved?.ankiCards ?? [],
-    ankiHidden: saved?.ankiHidden === true,
-    ankiHeightVh: clampAnkiHeight(saved?.ankiHeightVh),
-    ankiCycleAt: saved?.ankiCycleAt ?? saved?.updatedAt ?? Date.now(),
     topicColumns: clampTopicColumns(saved?.topicColumns),
     tagNames: normalizeTagNames(saved?.tagNames),
     tagColors: normalizeTagColors(saved?.tagColors),
-    personNames: normalizePersonNames(saved?.personNames),
     updatedAt: saved?.updatedAt ?? Date.now(),
   };
 
@@ -88,7 +73,7 @@ export function mergeCurriculum(saved: AppState | null, blueprint: AppState): Ap
   const previous = new Map<string, Category>();
   const previousTopics = new Map<
     string,
-    { confidence: Category["topics"][number]["confidence"]; jasmine: Category["topics"][number]["jasmine"]; id: string }
+    { confidence: Category["topics"][number]["confidence"]; id: string }
   >();
 
   if (saved) {
@@ -98,7 +83,6 @@ export function mergeCurriculum(saved: AppState | null, blueprint: AppState): Ap
         previousTopics.set(`${category.name}\0${topic.name}`, {
           id: topic.id,
           confidence: topic.confidence,
-          jasmine: topic.jasmine ?? "red",
         });
       }
     }
@@ -109,15 +93,9 @@ export function mergeCurriculum(saved: AppState | null, blueprint: AppState): Ap
     title: saved?.title || blueprint.title,
     theme: "dark",
     source: blueprint.source || saved?.source || CURRICULUM_TEXT,
-    ankiSource: saved?.ankiSource ?? blueprint.ankiSource ?? "",
-    ankiCards: saved?.ankiCards ?? blueprint.ankiCards ?? [],
-    ankiHidden: saved?.ankiHidden === true,
-    ankiHeightVh: clampAnkiHeight(saved?.ankiHeightVh ?? blueprint.ankiHeightVh),
-    ankiCycleAt: saved?.ankiCycleAt ?? blueprint.ankiCycleAt,
     topicColumns: clampTopicColumns(saved?.topicColumns ?? blueprint.topicColumns),
     tagNames: normalizeTagNames(saved?.tagNames ?? blueprint.tagNames),
     tagColors: normalizeTagColors(saved?.tagColors ?? blueprint.tagColors),
-    personNames: normalizePersonNames(saved?.personNames ?? blueprint.personNames),
     updatedAt: saved?.updatedAt ?? blueprint.updatedAt,
     categories: blueprint.categories.map((category, categoryIndex) => {
       const prior = previous.get(category.name);
@@ -132,7 +110,6 @@ export function mergeCurriculum(saved: AppState | null, blueprint: AppState): Ap
             ...topic,
             id: priorTopic?.id ?? topic.id,
             confidence: priorTopic?.confidence ?? "red",
-            jasmine: priorTopic?.jasmine ?? "red",
             order: topicIndex,
           };
         }),

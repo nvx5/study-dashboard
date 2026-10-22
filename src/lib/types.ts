@@ -1,5 +1,3 @@
-import type { AnkiCard } from "./anki";
-
 export const CONFIDENCE = ["red", "yellow", "green"] as const;
 export const THEMES = ["light", "dark"] as const;
 
@@ -10,7 +8,6 @@ export type Topic = {
   id: string;
   name: string;
   confidence: Confidence;
-  jasmine: Confidence;
   order: number;
 };
 
@@ -28,15 +25,9 @@ export type AppState = {
   theme: Theme;
   source: string;
   categories: Category[];
-  ankiSource: string;
-  ankiCards: AnkiCard[];
-  ankiHidden: boolean;
-  ankiHeightVh: number;
-  ankiCycleAt: number;
   topicColumns: number;
   tagNames: Record<Confidence, string>;
   tagColors: Record<Confidence, string>;
-  personNames: Record<"nil" | "jasmine", string>;
   updatedAt: number;
 };
 

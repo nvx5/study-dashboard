@@ -1,13 +1,5 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import { ANKI_FILENAME, MAX_ANKI_SOURCE_LENGTH } from "../lib/anki";
-import {
-  ANKI_CARD_MS,
-  ANKI_FRONT_MS,
-  ANKI_HEIGHT_DEFAULT,
-  ANKI_HEIGHT_MAX,
-  ANKI_HEIGHT_MIN,
-} from "../lib/anki-cycle";
 import {
   DEFAULT_TAG_COLORS,
   DEFAULT_TAG_NAMES,
@@ -16,7 +8,7 @@ import {
 } from "../lib/display";
 import { CURRICULUM_FILENAME, CURRICULUM_TEXT } from "../lib/curriculum";
 import { DEFAULT_TITLE } from "../lib/defaults";
-import { categoryPairProgress } from "../lib/progress";
+import { categoryProgress } from "../lib/progress";
 import { getState } from "../lib/store";
 import { DATA_VERSION, type AppState } from "../lib/types";
 
@@ -32,15 +24,9 @@ try {
     title: DEFAULT_TITLE,
     theme: "dark",
     source: CURRICULUM_TEXT,
-    ankiSource: "",
-    ankiCards: [],
-    ankiHidden: false,
-    ankiHeightVh: ANKI_HEIGHT_DEFAULT,
-    ankiCycleAt: 0,
     topicColumns: TOPIC_COLUMNS_DEFAULT,
     tagNames: { ...DEFAULT_TAG_NAMES },
     tagColors: { ...DEFAULT_TAG_COLORS },
-    personNames: { nil: "N", jasmine: "J" },
     categories: [],
     updatedAt: 0,
   };
@@ -49,12 +35,6 @@ try {
 const boot = JSON.stringify({
   loaded,
   state,
-  anki: {
-    frontMs: ANKI_FRONT_MS,
-    cardMs: ANKI_CARD_MS,
-    heightMin: ANKI_HEIGHT_MIN,
-    heightMax: ANKI_HEIGHT_MAX,
-  },
 }).replace(/</g, "\\u003c");
 
 const tagColors = normalizeTagColors(state.tagColors);
@@ -66,11 +46,85 @@ const tagColors = normalizeTagColors(state.tagColors);
       Couldn’t load saved topics. You can still edit, then save when the connection returns.
     </p>
 
+    <section class="file" aria-label="topics">
+      <div class="file-head">
+        <span class="file-name">topics</span>
+        <div class="file-head-actions">
+          <p id="save-status" class="save-status" aria-live="polite"></p>
+          <span id="topics-meta" class="file-meta">
+            {state.categories.length} {state.categories.length === 1 ? "category" : "categories"}
+          </span>
+        </div>
+      </div>
+      <div id="list" class="categories">
+        {
+          state.categories.map((category) => {
+            const progress = categoryProgress(category);
+            return (
+              <details class="category" data-id={category.id}>
+                <summary>
+                  <span class="summary-name">{category.name}</span>
+                  <span class="summary-progress">{progress.label}</span>
+                  <button
+                    type="button"
+                    class="btn collapse"
+                    data-action="collapse"
+                    aria-pressed={category.collapsed}
+                  >
+                    {category.collapsed ? "Collapsed" : "Shown"}
+                  </button>
+                </summary>
+                <ul class="topics">
+                  {category.topics.map((topic) => (
+                    <li class="topic" data-id={topic.id} data-confidence={topic.confidence}>
+                      <span class="topic-name">{topic.name}</span>
+                      <div class="segment" role="group" aria-label={`Confidence for ${topic.name}`}>
+                        <button
+                          type="button"
+                          class="seg red"
+                          data-action="confidence"
+                          data-value="red"
+                          aria-pressed={topic.confidence === "red"}
+                        >
+                          3
+                        </button>
+                        <button
+                          type="button"
+                          class="seg yellow"
+                          data-action="confidence"
+                          data-value="yellow"
+                          aria-pressed={topic.confidence === "yellow"}
+                        >
+                          2
+                        </button>
+                        <button
+                          type="button"
+                          class="seg green"
+                          data-action="confidence"
+                          data-value="green"
+                          aria-pressed={topic.confidence === "green"}
+                        >
+                          1
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            );
+          })
+        }
+        <p id="empty" class="empty" hidden={state.categories.length > 0}>
+          Save curriculum.txt to generate topic cards.
+        </p>
+      </div>
+    </section>
+
     <section class="file" aria-label={CURRICULUM_FILENAME}>
       <div class="file-head">
         <span class="file-name">{CURRICULUM_FILENAME}</span>
         <div class="file-head-actions">
-          <p id="save-status" class="save-status" aria-live="polite"></p>
+          <p id="curriculum-status" class="save-status" aria-live="polite"></p>
           <button type="button" class="btn" id="copy-curriculum">Copy</button>
           <button type="button" class="btn primary" id="save-curriculum">Save</button>
         </div>
@@ -83,36 +137,6 @@ const tagColors = normalizeTagColors(state.tagColors);
           wrap="soft"
           aria-label={CURRICULUM_FILENAME}
         >{state.source}</textarea>
-      </div>
-    </section>
-
-    <section class="file" aria-label={ANKI_FILENAME}>
-      <div class="file-head">
-        <span class="file-name">{ANKI_FILENAME}</span>
-        <span id="anki-meta" class="file-meta">{state.ankiCards.length} cards</span>
-        <div class="file-head-actions">
-          <p id="anki-status" class="save-status" aria-live="polite"></p>
-          <input
-            id="anki-upload"
-            class="visually-hidden"
-            type="file"
-            accept=".txt,text/plain"
-            data-max={MAX_ANKI_SOURCE_LENGTH}
-          />
-          <button type="button" class="btn" id="copy-anki">Copy</button>
-          <button type="button" class="btn" id="upload-anki">Upload</button>
-          <button type="button" class="btn primary" id="save-anki">Save</button>
-        </div>
-      </div>
-      <div class="file-body anki-body">
-        <textarea
-          id="anki-source"
-          class="source"
-          spellcheck="false"
-          wrap="soft"
-          aria-label={ANKI_FILENAME}
-          placeholder={"Paste an Anki Notes in Plain Text export, or Upload the .txt file.\nCloze cards ({{c1::answer}}) work. Extra text after the tab shows on the back."}
-        >{state.ankiSource}</textarea>
       </div>
     </section>
 
@@ -174,88 +198,6 @@ const tagColors = normalizeTagColors(state.tagColors);
         </div>
       </div>
     </section>
-
-    <section class="file" aria-label="anki">
-      <div class="file-head">
-        <span class="file-name">anki</span>
-        <div class="file-head-actions">
-          <p id="anki-kiosk-status" class="save-status" aria-live="polite"></p>
-          <button type="button" class="btn" id="anki-show-answer">Answer</button>
-          <button type="button" class="btn" id="anki-next-stage">Stage</button>
-          <button type="button" class="btn" id="anki-next-card">Next</button>
-        </div>
-      </div>
-      <div class="display-panel">
-        <div class="display-row display-row-toggle">
-          <span class="display-label">Visible</span>
-          <button
-            type="button"
-            class="switch"
-            id="anki-visible"
-            role="switch"
-            aria-checked={state.ankiHidden ? "false" : "true"}
-            aria-label="Show anki card"
-          >
-            <span class="switch-knob"></span>
-          </button>
-        </div>
-        <div class="display-row display-row-height">
-          <span class="display-label">Height</span>
-          <input
-            id="anki-height"
-            type="range"
-            min={ANKI_HEIGHT_MIN}
-            max={ANKI_HEIGHT_MAX}
-            value={state.ankiHeightVh}
-            aria-label="Anki card height"
-          />
-          <span id="anki-height-val" class="display-height-val">{state.ankiHeightVh}vh</span>
-        </div>
-        <p class="display-timer" id="anki-timer">No cards</p>
-      </div>
-    </section>
-
-    <section class="file" aria-label="topics">
-      <div class="file-head">
-        <span class="file-name">topics</span>
-        <span id="topics-meta" class="file-meta">
-          {state.categories.length} {state.categories.length === 1 ? "category" : "categories"}
-        </span>
-      </div>
-      <div id="list" class="categories">
-        {
-          state.categories.map((category) => {
-            const progress = categoryPairProgress(category);
-            return (
-              <details class="category" data-id={category.id}>
-                <summary>
-                  <span class="summary-name">{category.name}</span>
-                  <span class="summary-progress">{progress.label}</span>
-                  <button
-                    type="button"
-                    class="btn collapse"
-                    data-action="collapse"
-                    aria-pressed={category.collapsed}
-                  >
-                    {category.collapsed ? "Collapsed" : "Shown"}
-                  </button>
-                </summary>
-                <ul class="topics">
-                  {category.topics.map((topic) => (
-                    <li class="topic" data-id={topic.id}>
-                      <span class="topic-name">{topic.name}</span>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            );
-          })
-        }
-        <p id="empty" class="empty" hidden={state.categories.length > 0}>
-          Save curriculum.txt to generate topic cards.
-        </p>
-      </div>
-    </section>
   </div>
 
   <script id="boot" type="application/json" is:inline set:html={boot} />
@@ -266,45 +208,27 @@ const tagColors = normalizeTagColors(state.tagColors);
       var listEl = document.getElementById("list");
       var emptyEl = document.getElementById("empty");
       var statusEl = document.getElementById("save-status");
+      var curriculumStatusEl = document.getElementById("curriculum-status");
       var loadErrorEl = document.getElementById("load-error");
       var sourceEl = document.getElementById("source");
       var copyEl = document.getElementById("copy-curriculum");
       var saveEl = document.getElementById("save-curriculum");
       var topicsMetaEl = document.getElementById("topics-meta");
-      var ankiSourceEl = document.getElementById("anki-source");
-      var ankiMetaEl = document.getElementById("anki-meta");
-      var ankiStatusEl = document.getElementById("anki-status");
-      var copyAnkiEl = document.getElementById("copy-anki");
-      var saveAnkiEl = document.getElementById("save-anki");
-      var uploadAnkiEl = document.getElementById("upload-anki");
-      var ankiUploadEl = document.getElementById("anki-upload");
       var displayStatusEl = document.getElementById("display-status");
-      var ankiKioskStatusEl = document.getElementById("anki-kiosk-status");
-      var ankiVisibleEl = document.getElementById("anki-visible");
-      var ankiHeightEl = document.getElementById("anki-height");
-      var ankiHeightValEl = document.getElementById("anki-height-val");
-      var ankiTimerEl = document.getElementById("anki-timer");
-      var ankiShowAnswerEl = document.getElementById("anki-show-answer");
-      var ankiNextStageEl = document.getElementById("anki-next-stage");
-      var ankiNextCardEl = document.getElementById("anki-next-card");
       var topicColumnsEl = document.getElementById("topic-columns");
-      if (!bootEl || !listEl || !emptyEl || !statusEl || !sourceEl || !saveEl || !ankiSourceEl || !saveAnkiEl) return;
+      if (!bootEl || !listEl || !emptyEl || !statusEl || !sourceEl || !saveEl) return;
 
       var boot = JSON.parse(bootEl.textContent || "{}");
       var state = boot.state || { title: "Curriculum", theme: "dark", source: "", categories: [] };
-      var FRONT_MS = (boot.anki && boot.anki.frontMs) || 30000;
-      var CARD_MS = (boot.anki && boot.anki.cardMs) || 120000;
       var inFlight = false;
       var queued = false;
       var queuedSource = false;
-      var queuedAnki = false;
       var queuedDisplay = null;
       var clearTimer = 0;
-      var heightTimer = 0;
       var tagTimer = 0;
 
       function setStatus(text, kind, targets) {
-        var els = targets || [statusEl, ankiStatusEl];
+        var els = targets || [statusEl];
         for (var s = 0; s < els.length; s++) {
           if (!els[s]) continue;
           els[s].textContent = text;
@@ -323,66 +247,9 @@ const tagColors = normalizeTagColors(state.tagColors);
         }
       }
 
-      function displayStatusTargets(patch) {
-        var ankiPatch =
-          patch &&
-          (typeof patch.ankiHidden === "boolean" ||
-            typeof patch.ankiHeightVh === "number" ||
-            typeof patch.ankiCycleAt === "number");
-        var layoutPatch =
-          patch &&
-          (typeof patch.topicColumns === "number" || !!(patch.tagNames || patch.tagColors));
-        if (ankiPatch && layoutPatch) {
-          var both = [];
-          if (ankiKioskStatusEl) both.push(ankiKioskStatusEl);
-          if (displayStatusEl) both.push(displayStatusEl);
-          return both.length ? both : [statusEl, ankiStatusEl];
-        }
-        if (ankiPatch && ankiKioskStatusEl) return [ankiKioskStatusEl];
-        if (layoutPatch && displayStatusEl) return [displayStatusEl];
+      function displayStatusTargets() {
         if (displayStatusEl) return [displayStatusEl];
-        return [statusEl, ankiStatusEl];
-      }
-
-      function clock(ms) {
-        var s = Math.max(0, Math.ceil(ms / 1000));
-        var m = Math.floor(s / 60);
-        s = s % 60;
-        return m + ":" + (s < 10 ? "0" : "") + s;
-      }
-
-      function ankiPos() {
-        var cards = Array.isArray(state.ankiCards) ? state.ankiCards : [];
-        if (!cards.length) return null;
-        var origin = typeof state.ankiCycleAt === "number" ? state.ankiCycleAt : Date.now();
-        var elapsed = Math.max(0, Date.now() - origin);
-        var index = Math.floor(elapsed / CARD_MS) % cards.length;
-        var inCard = elapsed % CARD_MS;
-        var showBack = inCard >= FRONT_MS;
-        return {
-          count: cards.length,
-          index: index,
-          showBack: showBack,
-          stageRemain: (showBack ? CARD_MS : FRONT_MS) - inCard,
-          cardRemain: CARD_MS - inCard,
-        };
-      }
-
-      function paintTimer() {
-        var pos = ankiPos();
-        var disabled = !pos;
-        if (ankiShowAnswerEl) ankiShowAnswerEl.disabled = disabled || !!(pos && pos.showBack);
-        if (ankiNextStageEl) ankiNextStageEl.disabled = disabled;
-        if (ankiNextCardEl) ankiNextCardEl.disabled = disabled;
-        if (ankiVisibleEl) ankiVisibleEl.disabled = false;
-        if (!pos) {
-          if (ankiTimerEl) ankiTimerEl.textContent = "No cards";
-          return;
-        }
-        if (ankiTimerEl) {
-          var remain = pos.showBack ? "Next card in " + clock(pos.cardRemain) : "Answer in " + clock(pos.stageRemain);
-          ankiTimerEl.textContent = pos.index + 1 + "/" + pos.count + " · " + remain;
-        }
+        return [statusEl];
       }
 
       function parseHex(value) {
@@ -429,20 +296,10 @@ const tagColors = normalizeTagColors(state.tagColors);
       }
 
       function applyDisplay(data) {
-        if (typeof data.ankiHidden === "boolean") state.ankiHidden = data.ankiHidden;
-        if (typeof data.ankiHeightVh === "number") state.ankiHeightVh = data.ankiHeightVh;
-        if (typeof data.ankiCycleAt === "number") state.ankiCycleAt = data.ankiCycleAt;
         if (typeof data.topicColumns === "number") state.topicColumns = data.topicColumns;
         if (data.tagNames) state.tagNames = data.tagNames;
         if (data.tagColors) state.tagColors = data.tagColors;
         if (typeof data.updatedAt === "number") state.updatedAt = data.updatedAt;
-        if (ankiVisibleEl) {
-          ankiVisibleEl.setAttribute("aria-checked", state.ankiHidden ? "false" : "true");
-        }
-        if (ankiHeightEl && String(ankiHeightEl.value) !== String(state.ankiHeightVh)) {
-          ankiHeightEl.value = String(state.ankiHeightVh);
-        }
-        if (ankiHeightValEl) ankiHeightValEl.textContent = state.ankiHeightVh + "vh";
         if (topicColumnsEl) {
           var colBtns = topicColumnsEl.querySelectorAll("[data-columns]");
           for (var c = 0; c < colBtns.length; c++) {
@@ -453,7 +310,6 @@ const tagColors = normalizeTagColors(state.tagColors);
           }
         }
         syncTagInputs();
-        paintTimer();
       }
 
       function findCategory(id) {
@@ -463,15 +319,21 @@ const tagColors = normalizeTagColors(state.tagColors);
         return null;
       }
 
+      function findTopic(category, id) {
+        for (var i = 0; i < category.topics.length; i++) {
+          if (category.topics[i].id === id) return category.topics[i];
+        }
+        return null;
+      }
+
       function progressLabel(category) {
         var total = category.topics.length;
-        var nilDone = 0;
-        var jasmineDone = 0;
+        var done = 0;
         for (var i = 0; i < total; i++) {
-          if (category.topics[i].confidence === "green") nilDone++;
-          if (category.topics[i].jasmine === "green") jasmineDone++;
+          if (category.topics[i].confidence === "green") done++;
         }
-        return nilDone + "/" + total + " · " + jasmineDone + "/" + total;
+        var pct = total === 0 ? 0 : Math.round((done * 100) / total);
+        return done + "/" + total + " (" + pct + "%)";
       }
 
       function openIds() {
@@ -503,9 +365,22 @@ const tagColors = normalizeTagColors(state.tagColors);
           html += "</button></summary><ul class='topics'>";
           for (var t = 0; t < category.topics.length; t++) {
             var topic = category.topics[t];
-            html += '<li class="topic" data-id="' + escapeHtml(topic.id) + '">';
+            html += '<li class="topic" data-id="' + escapeHtml(topic.id) + '" data-confidence="' + escapeHtml(topic.confidence) + '">';
             html += '<span class="topic-name"></span>';
-            html += "</li>";
+            html += '<div class="segment" role="group" aria-label="Confidence">';
+            html +=
+              '<button type="button" class="seg red" data-action="confidence" data-value="red" aria-pressed="' +
+              (topic.confidence === "red" ? "true" : "false") +
+              '">3</button>';
+            html +=
+              '<button type="button" class="seg yellow" data-action="confidence" data-value="yellow" aria-pressed="' +
+              (topic.confidence === "yellow" ? "true" : "false") +
+              '">2</button>';
+            html +=
+              '<button type="button" class="seg green" data-action="confidence" data-value="green" aria-pressed="' +
+              (topic.confidence === "green" ? "true" : "false") +
+              '">1</button>';
+            html += "</div></li>";
           }
           html += "</ul></details>";
         }
@@ -523,52 +398,50 @@ const tagColors = normalizeTagColors(state.tagColors);
         for (var i = 0; i < cats.length; i++) {
           var catNode = cats[i];
           var cat = findCategory(catNode.getAttribute("data-id"));
+          if (!cat) continue;
           catNode.querySelector(".summary-name").textContent = cat.name;
           var rows = catNode.querySelectorAll(".topic");
           for (var r = 0; r < rows.length; r++) {
             var item = cat.topics[r];
+            if (!item) continue;
             rows[r].querySelector(".topic-name").textContent = item.name;
           }
         }
       }
 
-      async function save(includeSource, includeAnki, displayPatch) {
+      function saveStatusTargets(includeSource, displayPatch) {
+        if (includeSource && curriculumStatusEl) return [curriculumStatusEl];
+        if (displayPatch && !includeSource) return displayStatusTargets();
+        return [statusEl];
+      }
+
+      async function save(includeSource, displayPatch) {
         if (inFlight) {
           queued = true;
           if (includeSource) queuedSource = true;
-          if (includeAnki) queuedAnki = true;
           if (displayPatch) queuedDisplay = Object.assign({}, queuedDisplay || {}, displayPatch);
           return;
         }
         inFlight = true;
-        var displayOnly = !!(displayPatch && !includeSource && !includeAnki);
-        var statusTargets = displayOnly ? displayStatusTargets(displayPatch) : [statusEl, ankiStatusEl];
+        var statusTargets = saveStatusTargets(includeSource, displayPatch);
         if (displayPatch) queuedDisplay = Object.assign({}, queuedDisplay || {}, displayPatch);
         setStatus("Saving…", "pending", statusTargets);
         try {
           do {
             var sendSource = queuedSource || includeSource;
-            var sendAnki = queuedAnki || includeAnki;
             var sendDisplay = queuedDisplay;
             queued = false;
             queuedSource = false;
-            queuedAnki = false;
             queuedDisplay = null;
             includeSource = false;
-            includeAnki = false;
-            displayOnly = !sendSource && !sendAnki && !!sendDisplay;
-            statusTargets = displayOnly ? displayStatusTargets(sendDisplay) : [statusEl, ankiStatusEl];
+            statusTargets = saveStatusTargets(sendSource, sendDisplay);
             var body = {
               title: state.title || "MSRA Master Clinical Curriculum",
               theme: "dark",
               categories: state.categories,
             };
             if (sendSource) body.source = sourceEl.value;
-            if (sendAnki) body.ankiSource = ankiSourceEl.value;
             if (sendDisplay) {
-              if (typeof sendDisplay.ankiHidden === "boolean") body.ankiHidden = sendDisplay.ankiHidden;
-              if (typeof sendDisplay.ankiHeightVh === "number") body.ankiHeightVh = sendDisplay.ankiHeightVh;
-              if (typeof sendDisplay.ankiCycleAt === "number") body.ankiCycleAt = sendDisplay.ankiCycleAt;
               if (typeof sendDisplay.topicColumns === "number") body.topicColumns = sendDisplay.topicColumns;
               if (sendDisplay.tagNames) body.tagNames = sendDisplay.tagNames;
               if (sendDisplay.tagColors) body.tagColors = sendDisplay.tagColors;
@@ -585,13 +458,10 @@ const tagColors = normalizeTagColors(state.tagColors);
             if (sendSource && data.categories) {
               state = data;
               if (typeof data.source === "string") sourceEl.value = data.source;
-              if (typeof data.ankiSource === "string") ankiSourceEl.value = data.ankiSource;
               renderList();
-            } else if (sendAnki) {
-              state.ankiSource = data.ankiSource || ankiSourceEl.value;
-              state.ankiCards = data.ankiCards || [];
+            } else if (data.categories) {
+              state.categories = data.categories;
               state.updatedAt = data.updatedAt || Date.now();
-              if (ankiMetaEl) ankiMetaEl.textContent = state.ankiCards.length + " cards";
             } else {
               state.updatedAt = data.updatedAt || Date.now();
             }
@@ -607,15 +477,13 @@ const tagColors = normalizeTagColors(state.tagColors);
       }
 
       applyDisplay(state);
-      paintTimer();
-      setInterval(paintTimer, 250);
 
       statusEl.addEventListener("click", function () {
-        if (statusEl.dataset.kind === "error") save(false, false);
+        if (statusEl.dataset.kind === "error") save(false);
       });
-      if (ankiStatusEl) {
-        ankiStatusEl.addEventListener("click", function () {
-          if (ankiStatusEl.dataset.kind === "error") save(false, true);
+      if (curriculumStatusEl) {
+        curriculumStatusEl.addEventListener("click", function () {
+          if (curriculumStatusEl.dataset.kind === "error") save(true);
         });
       }
 
@@ -636,98 +504,14 @@ const tagColors = normalizeTagColors(state.tagColors);
       }
 
       saveEl.addEventListener("click", function () {
-        save(true, false);
+        save(true);
       });
-      saveAnkiEl.addEventListener("click", function () {
-        save(false, true);
-      });
-      function applyAnkiText(text) {
-        var max = Number(ankiUploadEl && ankiUploadEl.getAttribute("data-max")) || 500000;
-        var next = String(text || "").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
-        if (next.length > max) {
-          setStatus("anki.txt is too long", "error");
-          return;
-        }
-        ankiSourceEl.value = next;
-        save(false, true);
-      }
-      if (uploadAnkiEl && ankiUploadEl) {
-        uploadAnkiEl.addEventListener("click", function () {
-          ankiUploadEl.click();
-        });
-        ankiUploadEl.addEventListener("change", function () {
-          var file = ankiUploadEl.files && ankiUploadEl.files[0];
-          ankiUploadEl.value = "";
-          if (!file) return;
-          if (file.size > 2 * 1024 * 1024) {
-            setStatus("anki.txt is too long", "error");
-            return;
-          }
-          var reader = new FileReader();
-          reader.onload = function () {
-            applyAnkiText(typeof reader.result === "string" ? reader.result : "");
-          };
-          reader.onerror = function () {
-            setStatus("Couldn’t read that file.", "error");
-          };
-          reader.readAsText(file);
-        });
-      }
-      if (copyAnkiEl) {
-        copyAnkiEl.addEventListener("click", function () {
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(ankiSourceEl.value).then(
-              function () {
-                copyAnkiEl.textContent = "Copied";
-                window.setTimeout(function () {
-                  copyAnkiEl.textContent = "Copy";
-                }, 1200);
-              },
-              function () {},
-            );
-          }
-        });
-      }
 
       if (displayStatusEl) {
         displayStatusEl.addEventListener("click", function () {
           if (displayStatusEl.dataset.kind === "error") {
-            save(false, false, layoutRetryPatch());
+            save(false, layoutRetryPatch());
           }
-        });
-      }
-
-      if (ankiKioskStatusEl) {
-        ankiKioskStatusEl.addEventListener("click", function () {
-          if (ankiKioskStatusEl.dataset.kind === "error") {
-            save(false, false, {
-              ankiHidden: state.ankiHidden === true,
-              ankiHeightVh: Number(state.ankiHeightVh),
-              ankiCycleAt: state.ankiCycleAt,
-            });
-          }
-        });
-      }
-
-      if (ankiVisibleEl) {
-        ankiVisibleEl.addEventListener("click", function () {
-          var shown = ankiVisibleEl.getAttribute("aria-checked") === "true";
-          applyDisplay({ ankiHidden: shown });
-          save(false, false, { ankiHidden: shown });
-        });
-      }
-
-      if (ankiHeightEl) {
-        ankiHeightEl.addEventListener("input", function () {
-          if (ankiHeightValEl) ankiHeightValEl.textContent = ankiHeightEl.value + "vh";
-          window.clearTimeout(heightTimer);
-          heightTimer = window.setTimeout(function () {
-            save(false, false, { ankiHeightVh: Number(ankiHeightEl.value) });
-          }, 250);
-        });
-        ankiHeightEl.addEventListener("change", function () {
-          window.clearTimeout(heightTimer);
-          save(false, false, { ankiHeightVh: Number(ankiHeightEl.value) });
         });
       }
 
@@ -737,7 +521,7 @@ const tagColors = normalizeTagColors(state.tagColors);
           if (!button) return;
           var n = Number(button.getAttribute("data-columns"));
           applyDisplay({ topicColumns: n });
-          save(false, false, { topicColumns: n });
+          save(false, { topicColumns: n });
         });
       }
 
@@ -751,7 +535,7 @@ const tagColors = normalizeTagColors(state.tagColors);
             var hexEl = document.querySelector('.tag-hex-input[data-tag="' + key + '"]');
             if (hexEl) hexEl.value = hex;
             window.clearTimeout(tagTimer);
-            save(false, false, { tagColors: collectTagColors() });
+            save(false, { tagColors: collectTagColors() });
           });
         }
         var hexEls = document.querySelectorAll(".tag-hex-input");
@@ -764,7 +548,7 @@ const tagColors = normalizeTagColors(state.tagColors);
             if (colorEl) colorEl.value = hex;
             window.clearTimeout(tagTimer);
             tagTimer = window.setTimeout(function () {
-              save(false, false, { tagColors: collectTagColors() });
+              save(false, { tagColors: collectTagColors() });
             }, 250);
           });
           hexEls[h].addEventListener("change", function (event) {
@@ -774,44 +558,12 @@ const tagColors = normalizeTagColors(state.tagColors);
               syncTagInputs();
               return;
             }
-            save(false, false, { tagColors: collectTagColors() });
+            save(false, { tagColors: collectTagColors() });
           });
         }
       }
 
       bindTagInputs();
-
-      function jumpCycle(kind) {
-        var pos = ankiPos();
-        if (!pos) return;
-        var now = Date.now();
-        var nextAt = now;
-        if (kind === "answer") {
-          nextAt = now - (pos.index * CARD_MS + FRONT_MS);
-        } else if (kind === "stage") {
-          if (pos.showBack) nextAt = now - ((pos.index + 1) % pos.count) * CARD_MS;
-          else nextAt = now - (pos.index * CARD_MS + FRONT_MS);
-        } else {
-          nextAt = now - ((pos.index + 1) % pos.count) * CARD_MS;
-        }
-        save(false, false, { ankiCycleAt: nextAt });
-      }
-
-      if (ankiShowAnswerEl) {
-        ankiShowAnswerEl.addEventListener("click", function () {
-          jumpCycle("answer");
-        });
-      }
-      if (ankiNextStageEl) {
-        ankiNextStageEl.addEventListener("click", function () {
-          jumpCycle("stage");
-        });
-      }
-      if (ankiNextCardEl) {
-        ankiNextCardEl.addEventListener("click", function () {
-          jumpCycle("card");
-        });
-      }
 
       listEl.addEventListener("click", function (event) {
         var button = event.target.closest("button");
@@ -828,8 +580,26 @@ const tagColors = normalizeTagColors(state.tagColors);
           category.collapsed = !category.collapsed;
           button.setAttribute("aria-pressed", category.collapsed ? "true" : "false");
           button.textContent = category.collapsed ? "Collapsed" : "Shown";
-          save(false, false);
+          save(false);
           return;
+        }
+
+        if (action === "confidence") {
+          var row = button.closest(".topic");
+          if (!row) return;
+          var topic = findTopic(category, row.getAttribute("data-id"));
+          if (!topic) return;
+          topic.confidence = button.getAttribute("data-value");
+          var buttons = row.querySelectorAll("[data-action='confidence']");
+          for (var i = 0; i < buttons.length; i++) {
+            buttons[i].setAttribute(
+              "aria-pressed",
+              buttons[i].getAttribute("data-value") === topic.confidence ? "true" : "false",
+            );
+          }
+          row.setAttribute("data-confidence", topic.confidence);
+          catNode.querySelector(".summary-progress").textContent = progressLabel(category);
+          save(false);
         }
       });
     })();

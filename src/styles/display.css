@@ -67,76 +67,6 @@ body.display .cat {
   overflow: hidden;
 }
 
-body.display .anki {
-  --anki-dock: 26vh;
-  flex: 0 0 var(--anki-dock);
-  height: var(--anki-dock);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  margin: 16px 0 0;
-  background: var(--row);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-body.display .anki-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 0 0 auto;
-  padding: 8px 16px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-body.display .anki-title {
-  font-size: 14px;
-}
-
-body.display .anki-side {
-  color: var(--muted);
-  font-weight: 500;
-}
-
-body.display .anki-count {
-  margin-left: auto;
-  color: var(--muted);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-
-body.display .anki-text {
-  flex: 1 1 auto;
-  min-height: 0;
-  margin: 0;
-  padding: 12px 16px;
-  overflow: auto;
-  font-size: 18px;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
-body.display .anki-text .cloze {
-  color: #99ebff;
-  font-weight: 650;
-}
-
-body.display .anki-extra-rule {
-  border: 0;
-  border-bottom: 1px dashed var(--line);
-  margin: 12px 0;
-}
-
-body.display .anki-extra {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.45;
-}
-
 body.display .empty {
   margin: 4rem auto 0;
   text-align: center;
@@ -205,60 +135,33 @@ body.display .topic-name {
   overflow-wrap: anywhere;
 }
 
-body.display .people {
-  display: -webkit-flex;
-  display: flex;
-  -webkit-flex: 0 0 auto;
+body.display .tag {
   flex: 0 0 auto;
-  -webkit-align-items: center;
-  align-items: center;
   margin-left: 12px;
-}
-
-body.display .person-tag {
-  display: -webkit-flex;
-  display: flex;
-  -webkit-flex: 0 0 auto;
-  flex: 0 0 auto;
-  -webkit-align-items: center;
-  align-items: center;
-  margin-left: 8px;
-  padding: 0 8px 0 6px;
-  border: 1px solid var(--line);
+  padding: 0 7px;
+  border: 1px solid;
   border-radius: 2em;
-  background: var(--btn);
-  color: var(--text);
   font-size: 12px;
   font-weight: 500;
-  line-height: 20px;
+  line-height: 18px;
   white-space: nowrap;
 }
 
-body.display .person-tag:first-child {
-  margin-left: 0;
-}
-
-body.display .person-name {
-  color: inherit;
-  white-space: nowrap;
-}
-
-body.display .dot {
-  width: 12px;
-  height: 12px;
-  margin-right: 6px;
-  border-radius: 50%;
-}
-
-body.display .person-tag[data-confidence="red"] .dot {
+body.display .tag[data-confidence="red"] {
   background: var(--tag-red-bg);
+  color: var(--tag-red-text);
+  border-color: var(--tag-red-border);
 }
 
-body.display .person-tag[data-confidence="yellow"] .dot {
+body.display .tag[data-confidence="yellow"] {
   background: var(--tag-yellow-bg);
+  color: var(--tag-yellow-text);
+  border-color: var(--tag-yellow-border);
 }
 
-body.display .person-tag[data-confidence="green"] .dot {
+body.display .tag[data-confidence="green"] {
   background: var(--tag-green-bg);
+  color: var(--tag-green-text);
+  border-color: var(--tag-green-border);
 }
 
